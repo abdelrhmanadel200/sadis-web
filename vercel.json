@@ -9,5 +9,17 @@
       "path": "/api/cron/expire-subscriptions",
       "schedule": "0 2 * * *"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/sadis-ultra.apk",
+      "destination": "https://github.com/abdelrhmanadel200/sadis-web/releases/latest/download/sadis-ultra.apk",
+      "permanent": false
+    },
+    {
+      "source": "/sadis-ultra-v:version.apk",
+      "destination": "https://github.com/abdelrhmanadel200/sadis-web/releases/latest/download/sadis-ultra.apk",
+      "permanent": false
+    }
   ]
 }
