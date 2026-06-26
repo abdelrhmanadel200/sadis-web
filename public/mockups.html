@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سادس ألترا — اقتراحات الواجهة الرئيسية</title>
+<style>
+  body{margin:0;background:#0b1220;font-family:'Tajawal','Cairo','Segoe UI',Tahoma,Arial,sans-serif;color:#fff;padding:40px 20px;}
+  h1{text-align:center;font-size:28px;margin:0 0 10px;}
+  h1 span{color:#7dd3fc;}
+  .lead{text-align:center;opacity:.7;max-width:600px;margin:0 auto 36px;font-size:14px;line-height:1.8;}
+  .recommended{text-align:center;background:#152034;border:2px solid #7dd3fc;border-radius:14px;padding:14px 22px;max-width:700px;margin:0 auto 30px;font-size:14px;}
+  .recommended b{color:#7dd3fc;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:24px;max-width:1500px;margin:0 auto;}
+  .card{background:#0e1729;border:1px solid #1f2c44;border-radius:24px;padding:18px;display:flex;flex-direction:column;align-items:center;}
+  .card.featured{border:2px solid #7dd3fc;background:linear-gradient(180deg,#0e1729,#0b1220);}
+  .card img{max-width:100%;height:auto;border-radius:16px;border:1px solid #1f2c44;}
+  .badge{display:inline-block;background:#7dd3fc;color:#0b1220;font-weight:800;font-size:11px;padding:4px 10px;border-radius:99px;margin-bottom:10px;}
+  .badge.new{background:#22c55e;color:#0b1220;}
+  .card h3{margin:8px 0 4px;font-size:18px;text-align:center;}
+  .card p{margin:0 0 14px;font-size:13px;opacity:.7;text-align:center;line-height:1.7;}
+  .note{max-width:700px;margin:36px auto 0;padding:18px 22px;border-radius:16px;background:#152034;border:1px solid #1f2c44;font-size:13px;line-height:1.9;}
+  .note b{color:#7dd3fc;}
+</style>
+</head>
+<body>
+  <h1>اقتراحات <span>الواجهة الرئيسية</span></h1>
+  <p class="lead">5 تصميمات مختلفة. اختار اللي يعجبك ونعتمده.</p>
+
+  <div class="recommended">
+    🔥 <b>الاقتراح 5 (الجديد)</b> — الواجهة الـ Chat-first زي ChatGPT و Claude و Gemini. أحدث ترند في تطبيقات الذكاء الاصطناعي على المتاجر.
+  </div>
+
+  <div class="grid">
+
+    <div class="card featured">
+      <span class="badge new">🔥 الاقتراح 5 — الجديد</span>
+      <h3>الشات أولاً (Chat-first)</h3>
+      <p>الذكاء هو الواجهة نفسها. الطالب يفتح التطبيق يلاقي الأستاذ ذكي قدامه. الأقسام (مكتبة / محاضرات / منتدى) في شريط سفلي.</p>
+      <img src="/mockup-home-v5.png" alt="mockup 5">
+    </div>
+
+    <div class="card">
+      <span class="badge">الاقتراح 1</span>
+      <h3>الشبكة الكلاسيكية 2×2</h3>
+      <p>هيدر ترحيبي بزر AI بارز + شبكة 4 أقسام + وصول سريع.</p>
+      <img src="/mockup-home.png" alt="mockup 1">
+    </div>
+
+    <div class="card">
+      <span class="badge">الاقتراح 2</span>
+      <h3>بطل الذكاء</h3>
+      <p>دائرة AI ضخمة في الوسط + تابات + قائمة عمودية للأقسام.</p>
+      <img src="/mockup-home-v2.png" alt="mockup 2">
+    </div>
+
+    <div class="card">
+      <span class="badge">الاقتراح 3</span>
+      <h3>لوحة الإنجاز اليومي</h3>
+      <p>عداد streak + تقدم في المنهج + مهام اليوم + كاروسيل أقسام (شبيه Duolingo).</p>
+      <img src="/mockup-home-v3.png" alt="mockup 3">
+    </div>
+
+    <div class="card">
+      <span class="badge">الاقتراح 4</span>
+      <h3>الفئات الملونة</h3>
+      <p>بانر AI طولاني + 4 بلاطات بألوان مختلفة لكل قسم.</p>
+      <img src="/mockup-home-v4.png" alt="mockup 4">
+    </div>
+
+  </div>
+
+  <div class="note">
+    <b>ملاحظة:</b> كل قسم في الشريط السفلي (المكتبة / المحاضرات / المنتدى) يفتح <b>داخل التطبيق</b> عن طريق WebView — تجربة سلسة بدون متصفح خارجي، والجلسة تنتقل تلقائياً للمنتدى عبر SSO.
+  </div>
+</body>
+</html>

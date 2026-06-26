@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>سادس ألترا — اقتراح 2: واجهة بطل الذكاء</title>
+<style>
+  body{margin:0;background:#0b1220;font-family:'Tajawal','Cairo','Segoe UI',Tahoma,Arial,sans-serif;color:#fff;padding:40px 20px;display:flex;justify-content:center;}
+  .stage{display:flex;gap:60px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+
+  .phone{width:380px;background:#0e1729;border-radius:48px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,.55), inset 0 0 0 2px #1f2a44;position:relative;}
+  .phone::before{content:"";position:absolute;top:18px;left:50%;transform:translateX(-50%);width:120px;height:22px;background:#000;border-radius:14px;z-index:5;}
+  .screen{background:#0c1424;border-radius:36px;overflow:hidden;height:780px;display:flex;flex-direction:column;position:relative;}
+
+  .statusbar{height:42px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:12px;color:#cbd5e1;opacity:.7;}
+
+  /* Big AI hero */
+  .ai-hero{margin:8px 16px 18px;padding:26px 22px 28px;border-radius:30px;background:radial-gradient(circle at 30% 20%, #38bdf8 0%, #1e66aa 45%, #163a73 100%);position:relative;overflow:hidden;text-align:center;}
+  .ai-hero::before{content:"";position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.10);}
+  .ai-hero::after{content:"";position:absolute;bottom:-60px;left:-30px;width:200px;height:200px;border-radius:50%;background:rgba(125,211,252,.18);}
+  .ai-hero .greet{font-size:13px;opacity:.85;margin-bottom:6px;position:relative;}
+  .ai-hero h1{font-size:22px;font-weight:800;margin:0 0 14px;position:relative;}
+  .ai-bubble{position:relative;display:inline-flex;align-items:center;justify-content:center;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.35);font-size:48px;margin:6px 0 16px;box-shadow:0 0 40px rgba(125,211,252,.45);}
+  .ai-bubble::after{content:"";position:absolute;inset:-8px;border:2px dashed rgba(255,255,255,.25);border-radius:50%;animation:none;}
+  .ai-cta{position:relative;display:block;background:#fff;color:#0e1729;font-weight:800;padding:12px 22px;border-radius:14px;font-size:14px;margin:0 auto;width:fit-content;}
+
+  /* Tabs */
+  .tabs{display:flex;gap:8px;padding:0 16px;margin-bottom:10px;}
+  .tab{flex:1;padding:9px 0;text-align:center;background:#152034;border:1px solid #1f2c44;border-radius:12px;font-size:12px;font-weight:700;opacity:.65;}
+  .tab.active{background:#7dd3fc;color:#0b1220;border-color:#7dd3fc;opacity:1;}
+
+  /* List items */
+  .list{padding:0 16px;display:flex;flex-direction:column;gap:10px;}
+  .item{display:flex;align-items:center;gap:12px;background:#152034;border:1px solid #1f2c44;border-radius:18px;padding:12px 14px;}
+  .item .icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+  .item .icon.lib{background:rgba(34,197,94,.16);color:#86efac;}
+  .item .icon.yt{background:rgba(239,68,68,.16);color:#fca5a5;}
+  .item .icon.forum{background:rgba(168,85,247,.16);color:#d8b4fe;}
+  .item .icon.subj{background:rgba(56,189,248,.16);color:#7dd3fc;}
+  .item h4{margin:0;font-size:14px;font-weight:800;}
+  .item p{margin:2px 0 0;font-size:11px;opacity:.55;}
+  .item .arrow{margin-inline-start:auto;opacity:.4;font-size:18px;}
+
+  /* Bottom nav */
+  .nav{margin-top:auto;background:#0e1729;border-top:1px solid #1f2c44;padding:10px 6px 18px;display:flex;justify-content:space-around;}
+  .nav .item2{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;opacity:.55;}
+  .nav .item2.active{opacity:1;color:#7dd3fc;}
+  .nav .item2 .ic2{font-size:20px;}
+
+  .legend{max-width:340px;color:#cbd5e1;font-size:14px;line-height:1.9;}
+  .legend h1{color:#fff;font-size:22px;margin:0 0 8px;}
+  .legend h1 span{color:#7dd3fc;}
+  .legend p{margin:0 0 12px;opacity:.85;}
+  .legend ul{padding-inline-start:20px;margin:0;}
+  .legend li{margin-bottom:8px;}
+  .legend li b{color:#fff;}
+</style>
+</head>
+<body>
+  <div class="stage">
+
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+
+        <div class="ai-hero">
+          <div class="greet">أهلاً أحمد 👋</div>
+          <h1>الأستاذ ذكي هنا</h1>
+          <div class="ai-bubble">🤖</div>
+          <a class="ai-cta">🎙 ابدأ الدردشة الآن</a>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active">الأقسام</div>
+          <div class="tab">المفضلة</div>
+          <div class="tab">آخر النشاط</div>
+        </div>
+
+        <div class="list">
+          <div class="item">
+            <div class="icon lib">📚</div>
+            <div><h4>المكتبة</h4><p>كتب وملخصات</p></div>
+            <span class="arrow">‹</span>
+          </div>
+          <div class="item">
+            <div class="icon yt">▶</div>
+            <div><h4>المحاضرات</h4><p>فيديوهات الأساتذة</p></div>
+            <span class="arrow">‹</span>
+          </div>
+          <div class="item">
+            <div class="icon forum">💬</div>
+            <div><h4>المنتدى</h4><p>ناقش زملاءك</p></div>
+            <span class="arrow">‹</span>
+          </div>
+          <div class="item">
+            <div class="icon subj">🧪</div>
+            <div><h4>المواد</h4><p>كل مواد المنهج</p></div>
+            <span class="arrow">‹</span>
+          </div>
+        </div>
+
+        <div class="nav">
+          <div class="item2 active"><span class="ic2">🏠</span>الرئيسية</div>
+          <div class="item2"><span class="ic2">💬</span>الدردشة</div>
+          <div class="item2"><span class="ic2">🎙</span>الصوت</div>
+          <div class="item2"><span class="ic2">👤</span>حسابي</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <h1>اقتراح 2: <span>بطل الذكاء</span></h1>
+      <p>الأستاذ ذكي هو نجم الواجهة — دائرة كبيرة وزر بارز في المنتصف، والأقسام مرتبة في قائمة عمودية أسفله.</p>
+      <ul>
+        <li><b>هيدر AI كبير</b> — تركيز كامل على زر الدردشة.</li>
+        <li><b>تابات</b> للأقسام / المفضلة / آخر النشاط.</li>
+        <li><b>قائمة عمودية</b> بدل الشبكة — أسهل في القراءة على الموبايل.</li>
+        <li><b>الشريط السفلي</b> ثابت كما هو.</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vercel
+next-env.d.ts
+
+# Large Flutter APKs shipped via /public are >80MB each. GitHub blocks
+# files > 100MB and big files bloat the repo — keep them out of git and
+# upload them as static assets through Vercel Blob (or copy at deploy
+# time from the Flutter build output).
+public/*.apk

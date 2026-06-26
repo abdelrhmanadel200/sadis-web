@@ -1,0 +1,326 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------
+ * Design tokens for the v0-based Landing page (Header / Hero / About /
+ * Features / StudyTracks / Pricing / Community / FAQ / Footer).
+ * These are HSL-based and read by tailwind.config.ts via hsl(var(--*)).
+ * They live alongside the legacy dark-* / light-* classes used by /chat
+ * etc., so both styles coexist without conflict.
+ * ------------------------------------------------------------------ */
+:root {
+  --background: 230 25% 8%;
+  --foreground: 0 0% 98%;
+  --card: 230 25% 11%;
+  --card-foreground: 0 0% 98%;
+  --popover: 230 25% 9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 195 80% 55%;
+  --primary-foreground: 230 25% 8%;
+  --secondary: 230 20% 18%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 230 15% 16%;
+  --muted-foreground: 0 0% 82%;
+  --accent: 195 80% 55%;
+  --accent-foreground: 230 25% 8%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 230 18% 24%;
+  --input: 230 20% 18%;
+  --ring: 195 80% 55%;
+  --radius: 0.75rem;
+  color-scheme: dark;
+}
+
+html {
+  direction: rtl;
+}
+
+/* Light-mode overrides for the v0 landing tokens.
+ * Same names as :root, but tuned for a clean white surface with the
+ * existing primary (cyan) accent unchanged so brand identity holds. */
+html.light {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 195 80% 42%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 195 80% 42%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 91%;
+  --input: 210 40% 96%;
+  --ring: 195 80% 42%;
+  color-scheme: light;
+}
+
+/* Light-mode tweaks to landing utilities — glass + glow look right on
+ * white surfaces by using subtle dark overlays instead of white ones. */
+html.light .glass {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+html.light .glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.04) 0%,
+    rgba(15, 23, 42, 0.01) 100%
+  );
+  border-color: rgba(15, 23, 42, 0.08);
+}
+html.light .glow {
+  box-shadow: 0 10px 40px rgba(15, 117, 169, 0.10);
+}
+html.light .glow-text {
+  text-shadow: none;
+}
+html.light .gradient-hero {
+  background: radial-gradient(
+    ellipse 80% 50% at 50% -20%,
+    rgba(15, 117, 169, 0.12),
+    transparent
+  );
+}
+
+body {
+  font-family: var(--font-tajawal), ui-sans-serif, system-ui, sans-serif;
+  background-color: #121212;
+  color: #ECECEC;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.light body {
+  background-color: #F5F5F5;
+  color: #111827;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 120, 0.55);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #1EA0D1 0%, #1E66AA 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Background shadows (blue top-left, white middle) */
+.bg-shadows {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.bg-shadows::before,
+.bg-shadows::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+}
+.bg-shadows::before {
+  width: 520px;
+  height: 520px;
+  top: -220px;
+  left: -220px;
+  background: radial-gradient(circle, rgba(30, 102, 170, 0.55) 0%, rgba(30, 102, 170, 0.15) 40%, transparent 70%);
+}
+.bg-shadows::after {
+  width: 520px;
+  height: 520px;
+  top: 200px;
+  left: 140px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 40%, transparent 70%);
+}
+
+html.light .bg-shadows::before {
+  background: radial-gradient(circle, rgba(30, 102, 170, 0.30) 0%, rgba(30, 102, 170, 0.08) 40%, transparent 70%);
+}
+html.light .bg-shadows::after {
+  background: radial-gradient(circle, rgba(30, 160, 209, 0.10) 0%, transparent 70%);
+}
+
+/* Surface / card utility classes tied to theme */
+@layer components {
+  .surface {
+    @apply bg-dark-surface;
+  }
+  html.light .surface {
+    @apply bg-light-surface;
+  }
+
+  .card {
+    @apply bg-dark-card;
+  }
+  html.light .card {
+    @apply bg-light-card;
+  }
+
+  .input-field {
+    @apply bg-dark-input border border-dark-border text-dark-text placeholder:text-dark-text-secondary;
+  }
+  html.light .input-field {
+    @apply bg-light-input border-light-border text-light-text placeholder:text-light-text-secondary;
+  }
+
+  .text-muted {
+    color: #D0D0D0 !important;
+  }
+  html.light .text-muted {
+    color: #4B5563 !important;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white transition-all;
+    background: linear-gradient(135deg, #1E66AA 0%, #1EA0D1 100%);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(30, 102, 170, 0.35);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold transition-all border;
+    @apply border-dark-border text-dark-text hover:bg-dark-card;
+  }
+  html.light .btn-ghost {
+    @apply border-light-border text-light-text hover:bg-light-card;
+  }
+
+  /* Theme-aware hover surface (used in sidebars, lists, menu items). */
+  .hover-surface {
+    @apply transition-colors;
+  }
+  .hover-surface:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+  html.light .hover-surface:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Theme-aware borders */
+.border-themed {
+  border-color: #373737;
+}
+html.light .border-themed {
+  border-color: #BEBEBE;
+}
+
+/* Make existing `border-dark-border` utility theme-aware to keep
+   light-theme legibility without rewriting every component. */
+html.light .border-dark-border {
+  border-color: #BEBEBE !important;
+}
+
+/* Markdown content */
+.prose-chat {
+  line-height: 1.8;
+  word-break: break-word;
+}
+.prose-chat p { margin-bottom: 0.6rem; }
+.prose-chat h1, .prose-chat h2, .prose-chat h3 { font-weight: 700; margin: 0.6rem 0; }
+.prose-chat h1 { font-size: 1.25rem; }
+.prose-chat h2 { font-size: 1.125rem; }
+.prose-chat h3 { font-size: 1rem; }
+.prose-chat ul, .prose-chat ol {
+  padding-inline-start: 1.25rem;
+  margin-bottom: 0.6rem;
+}
+.prose-chat li { margin-bottom: 0.25rem; }
+.prose-chat code {
+  background: rgba(128,128,128,0.2);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-family: var(--font-mulish), ui-monospace, monospace;
+  font-size: 0.9em;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+.prose-chat pre {
+  background: rgba(0,0,0,0.35);
+  padding: 0.75rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  direction: ltr;
+  text-align: left;
+  margin: 0.6rem 0;
+}
+html.light .prose-chat pre { background: rgba(0,0,0,0.06); }
+.prose-chat pre code { background: transparent; padding: 0; }
+.prose-chat strong { font-weight: 700; }
+.prose-chat a { color: #1EA0D1; text-decoration: underline; }
+.prose-chat blockquote {
+  border-inline-start: 3px solid #1E66AA;
+  padding-inline-start: 0.75rem;
+  color: inherit;
+  opacity: 0.85;
+  margin: 0.6rem 0;
+}
+
+/* Utility: hide on small screens */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* ---------------------------------------------------------------------
+ * v0 Landing utilities (glassmorphism + glow + gradients).
+ * ------------------------------------------------------------------ */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.glow {
+  box-shadow: 0 0 40px rgba(56, 189, 248, 0.15);
+}
+.glow-text {
+  text-shadow: 0 0 30px rgba(56, 189, 248, 0.5);
+}
+.gradient-hero {
+  background: radial-gradient(
+    ellipse 80% 50% at 50% -20%,
+    rgba(56, 189, 248, 0.15),
+    transparent
+  );
+}
+.gradient-accent {
+  background: linear-gradient(135deg, #38bdf8 0%, #22d3ee 50%, #2dd4bf 100%);
+}

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>سادس ألترا — الواجهة الجديدة: الشات أولاً</title>
+<style>
+  body{margin:0;background:#0b1220;font-family:'Tajawal','Cairo','Segoe UI',Tahoma,Arial,sans-serif;color:#fff;padding:40px 20px;display:flex;justify-content:center;}
+  .stage{display:flex;gap:60px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+
+  .phone{width:380px;background:#0e1729;border-radius:48px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,.55), inset 0 0 0 2px #1f2a44;position:relative;}
+  .phone::before{content:"";position:absolute;top:18px;left:50%;transform:translateX(-50%);width:120px;height:22px;background:#000;border-radius:14px;z-index:5;}
+  .screen{background:#0c1424;border-radius:36px;overflow:hidden;height:780px;display:flex;flex-direction:column;position:relative;}
+
+  .statusbar{height:42px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:12px;color:#cbd5e1;opacity:.7;}
+
+  /* Top header: menu / title / new-chat */
+  .topbar{display:flex;justify-content:space-between;align-items:center;padding:6px 18px 12px;}
+  .icon-btn{width:36px;height:36px;border-radius:12px;background:#152034;border:1px solid #1f2c44;display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .title{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px;}
+  .title .logo{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:14px;}
+  .title .caret{opacity:.5;font-size:12px;margin-inline-start:4px;}
+
+  /* Chat area */
+  .chat{flex:1;padding:6px 16px 12px;overflow:hidden;display:flex;flex-direction:column;gap:12px;}
+
+  .msg-user{align-self:flex-end;background:#152034;border:1px solid #1f2c44;border-radius:18px 18px 4px 18px;padding:12px 14px;font-size:13px;max-width:80%;line-height:1.6;}
+  .msg-ai{display:flex;gap:10px;align-items:flex-start;}
+  .msg-ai .av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:2px;}
+  .msg-ai .bub{background:transparent;font-size:13px;line-height:1.8;}
+  .msg-ai .bub b{display:block;font-size:12px;opacity:.65;font-weight:700;margin-bottom:4px;}
+  .msg-ai ol{padding-inline-start:20px;margin:8px 0 0;}
+  .msg-ai ol li{margin-bottom:4px;}
+
+  /* Quick suggestions strip */
+  .suggest{padding:0 16px 8px;display:flex;gap:8px;overflow:hidden;}
+  .chip{background:#152034;border:1px solid #1f2c44;padding:8px 12px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap;}
+
+  /* Input bar */
+  .input-row{margin:0 14px 8px;display:flex;align-items:center;gap:8px;background:#152034;border:1px solid #1f2c44;border-radius:22px;padding:8px 10px 8px 14px;}
+  .input-row .ph{flex:1;font-size:13px;opacity:.55;}
+  .input-row .mic{width:36px;height:36px;border-radius:50%;background:#7dd3fc;color:#0b1220;display:flex;align-items:center;justify-content:center;font-size:16px;}
+
+  /* Bottom nav */
+  .nav{background:#0e1729;border-top:1px solid #1f2c44;padding:8px 6px 16px;display:flex;justify-content:space-around;}
+  .nav .it{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;opacity:.55;}
+  .nav .it.active{opacity:1;color:#7dd3fc;}
+  .nav .it .ic2{font-size:18px;}
+
+  /* Legend */
+  .legend{max-width:360px;color:#cbd5e1;font-size:14px;line-height:1.9;}
+  .legend h1{color:#fff;font-size:24px;margin:0 0 8px;}
+  .legend h1 span{color:#7dd3fc;}
+  .legend p{margin:0 0 14px;opacity:.85;}
+  .legend ul{padding-inline-start:20px;margin:0 0 14px;}
+  .legend li{margin-bottom:8px;}
+  .legend li b{color:#fff;}
+  .note{padding:14px 16px;border-radius:14px;background:#152034;border:1px solid #1f2c44;font-size:13px;}
+  .note b{color:#7dd3fc;}
+</style>
+</head>
+<body>
+  <div class="stage">
+
+    <!-- Phone mockup -->
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+
+        <div class="topbar">
+          <div class="icon-btn">☰</div>
+          <div class="title">
+            <div class="logo">✦</div>
+            الأستاذ ذكي
+            <span class="caret">▾</span>
+          </div>
+          <div class="icon-btn">＋</div>
+        </div>
+
+        <div class="chat">
+          <div class="msg-user">ساعدني أفهم درس قانون أوم في الفيزياء بطريقة بسيطة</div>
+
+          <div class="msg-ai">
+            <div class="av">✦</div>
+            <div class="bub">
+              <b>الأستاذ ذكي</b>
+              قانون أوم بيقول إن الجهد الكهربائي (V) يساوي شدة التيار (I) مضروبة في المقاومة (R):
+              <br><br>
+              <b style="opacity:1;color:#7dd3fc;font-size:14px;">V = I × R</b>
+              <br>
+              يعني لو زادت المقاومة وقلت الجهد ثابت، التيار راح ينقص. وهذا الأساس اللي تعتمد عليه الدوائر الكهربائية.
+              <ol>
+                <li>الجهد بالـ Volt</li>
+                <li>التيار بالـ Ampere</li>
+                <li>المقاومة بالـ Ohm</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <div class="suggest">
+          <div class="chip">📷 صورة</div>
+          <div class="chip">🎙 صوت حي</div>
+          <div class="chip">⭐ المفضلة</div>
+        </div>
+
+        <div class="input-row">
+          <div class="ph">اسأل الأستاذ ذكي...</div>
+          <div class="mic">🎙</div>
+        </div>
+
+        <div class="nav">
+          <div class="it active"><span class="ic2">💬</span>الأستاذ ذكي</div>
+          <div class="it"><span class="ic2">📚</span>المكتبة</div>
+          <div class="it"><span class="ic2">▶</span>المحاضرات</div>
+          <div class="it"><span class="ic2">💭</span>المنتدى</div>
+          <div class="it"><span class="ic2">👤</span>حسابي</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <h1>الواجهة <span>الجديدة</span></h1>
+      <p>الشات هو الواجهة الرئيسية — نفس فكرة ChatGPT و Claude و Gemini. الطالب يفتح التطبيق يلاقي الأستاذ ذكي قدامه على طول.</p>
+
+      <ul>
+        <li><b>الشات في المنتصف</b> — هو القلب، فيه الأسئلة والإجابات وآخر محادثة.</li>
+        <li><b>زر القائمة (☰)</b> فوق على اليمين — يفتح قائمة جانبية فيها سجل المحادثات السابقة.</li>
+        <li><b>زر + الجديد</b> فوق على الشمال — يبدأ محادثة جديدة.</li>
+        <li><b>اقتراحات سريعة</b> فوق شريط الكتابة — صورة / صوت / مفضلة.</li>
+        <li><b>الشريط السفلي</b> فيه 5 تبويبات:
+          <ul>
+            <li><b>الأستاذ ذكي</b> (افتراضياً مفتوح)</li>
+            <li><b>المكتبة</b> — يفتح WebView على /library</li>
+            <li><b>المحاضرات</b> — WebView على /lectures (يوتيوب)</li>
+            <li><b>المنتدى</b> — WebView على forum.6thultra.com مع SSO تلقائي</li>
+            <li><b>حسابي</b> — الاشتراك، الإعدادات، تسجيل الخروج</li>
+          </ul>
+        </li>
+      </ul>
+
+      <div class="note">
+        <b>الفلسفة:</b> الطالب يفتح التطبيق ويلاقي الذكاء قدامه مباشرة — مفيش شاشة وسيطة. أقسام المكتبة / المحاضرات / المنتدى موجودة في شريط سفلي ثابت، يوصلها بضغطة واحدة. الواجهة بتنافس تطبيقات الذكاء العالمية في المظهر والتجربة.
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

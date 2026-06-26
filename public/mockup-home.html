@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>سادس ألترا — نموذج الواجهة الرئيسية</title>
+<style>
+  body{margin:0;background:#0b1220;font-family:'Tajawal','Cairo','Segoe UI',Tahoma,Arial,sans-serif;color:#fff;padding:40px 20px;display:flex;justify-content:center;}
+  .stage{display:flex;gap:60px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+
+  .phone{width:380px;background:#0e1729;border-radius:48px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,.55), inset 0 0 0 2px #1f2a44;position:relative;}
+  .phone::before{content:"";position:absolute;top:18px;left:50%;transform:translateX(-50%);width:120px;height:22px;background:#000;border-radius:14px;z-index:5;}
+  .screen{background:#0c1424;border-radius:36px;overflow:hidden;height:780px;display:flex;flex-direction:column;position:relative;}
+
+  /* Top status bar */
+  .statusbar{height:42px;display:flex;justify-content:space-between;align-items:center;padding:0 28px 0 28px;font-size:12px;color:#cbd5e1;opacity:.7;}
+
+  /* Hero header card */
+  .hero{margin:6px 14px 14px;padding:18px 18px 22px;border-radius:24px;background:linear-gradient(135deg,#1eaed1 0%,#1e66aa 60%,#163a73 100%);position:relative;overflow:hidden;}
+  .hero::after{content:"";position:absolute;left:-30px;bottom:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.08);}
+  .hero h2{margin:0;font-size:18px;font-weight:800;}
+  .hero p{margin:4px 0 14px;font-size:13px;opacity:.9;}
+  .ask{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);backdrop-filter:blur(4px);padding:10px 14px;border-radius:14px;font-weight:700;font-size:13px;border:1px solid rgba(255,255,255,.25);}
+  .ask .dot{width:8px;height:8px;border-radius:50%;background:#7dd3fc;box-shadow:0 0 10px #7dd3fc;}
+
+  /* Grid */
+  .grid{padding:4px 14px 0;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .card{background:#152034;border:1px solid #1f2c44;border-radius:22px;padding:18px 16px;height:138px;position:relative;overflow:hidden;}
+  .card .ic{width:42px;height:42px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px;}
+  .card .ic.lib{background:rgba(34,197,94,.16);color:#86efac;}
+  .card .ic.yt{background:rgba(239,68,68,.16);color:#fca5a5;}
+  .card .ic.forum{background:rgba(168,85,247,.16);color:#d8b4fe;}
+  .card .ic.subj{background:rgba(56,189,248,.16);color:#7dd3fc;}
+  .card h3{margin:0;font-size:15px;font-weight:800;}
+  .card p{margin:4px 0 0;font-size:11px;opacity:.55;}
+  .badge{position:absolute;top:14px;left:14px;font-size:10px;background:rgba(34,197,94,.18);color:#86efac;padding:3px 8px;border-radius:8px;}
+
+  /* Section title */
+  .section-title{padding:14px 18px 6px;font-size:13px;opacity:.6;}
+
+  /* Quick row */
+  .quick{padding:0 14px;display:flex;gap:10px;overflow:hidden;}
+  .qchip{flex:1;background:#152034;border:1px solid #1f2c44;border-radius:16px;padding:12px 10px;text-align:center;font-size:12px;font-weight:700;}
+
+  /* Bottom nav */
+  .nav{margin-top:auto;background:#0e1729;border-top:1px solid #1f2c44;padding:10px 6px 18px;display:flex;justify-content:space-around;}
+  .nav .item{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;opacity:.55;}
+  .nav .item.active{opacity:1;color:#7dd3fc;}
+  .nav .item .ic2{font-size:20px;}
+
+  /* Legend column */
+  .legend{max-width:420px;color:#cbd5e1;font-size:14px;line-height:1.9;}
+  .legend h1{color:#fff;font-size:26px;margin:0 0 8px;}
+  .legend h1 span{color:#7dd3fc;}
+  .legend p{margin:0 0 18px;opacity:.85;}
+  .legend ol{padding-inline-start:20px;margin:0;}
+  .legend li{margin-bottom:10px;}
+  .legend li b{color:#fff;}
+  .note{margin-top:22px;padding:14px 16px;border-radius:14px;background:#152034;border:1px solid #1f2c44;font-size:13px;}
+  .note b{color:#7dd3fc;}
+</style>
+</head>
+<body>
+  <div class="stage">
+
+    <!-- Phone mockup -->
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+
+        <!-- Hero -->
+        <div class="hero">
+          <h2>أهلاً أحمد 👋</h2>
+          <p>الأستاذ ذكي جاهز يساعدك في أي وقت.</p>
+          <span class="ask"><span class="dot"></span> اسأل الأستاذ ذكي الآن</span>
+        </div>
+
+        <!-- 2x2 Grid -->
+        <div class="grid">
+          <div class="card">
+            <div class="ic lib">📚</div>
+            <h3>المكتبة</h3>
+            <p>كتب وملخصات</p>
+          </div>
+          <div class="card">
+            <div class="ic yt">▶</div>
+            <h3>المحاضرات</h3>
+            <p>فيديوهات الأساتذة</p>
+          </div>
+          <div class="card">
+            <div class="ic forum">💬</div>
+            <span class="badge">جديد</span>
+            <h3>المنتدى</h3>
+            <p>ناقش زملاءك</p>
+          </div>
+          <div class="card">
+            <div class="ic subj">🧪</div>
+            <h3>المواد</h3>
+            <p>كل مواد المنهج</p>
+          </div>
+        </div>
+
+        <!-- Quick row -->
+        <div class="section-title">الوصول السريع</div>
+        <div class="quick">
+          <div class="qchip">🎙 الصوت الحي</div>
+          <div class="qchip">📷 حل بالصورة</div>
+          <div class="qchip">⭐ المفضلة</div>
+        </div>
+
+        <!-- Bottom nav -->
+        <div class="nav">
+          <div class="item active"><span class="ic2">🏠</span>الرئيسية</div>
+          <div class="item"><span class="ic2">💬</span>الدردشة</div>
+          <div class="item"><span class="ic2">🎙</span>الصوت</div>
+          <div class="item"><span class="ic2">👤</span>حسابي</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <h1>الواجهة الرئيسية <span>المقترحة</span></h1>
+      <p>نموذج أولي لشكل الـ Home Screen في التطبيق بعد التعديل.</p>
+
+      <ol>
+        <li><b>الهيدر الترحيبي</b> — اسم الطالب + زر بارز "اسأل الأستاذ ذكي الآن" يفتح الدردشة فوراً.</li>
+        <li><b>شبكة 2×2 — الأقسام الجديدة:</b>
+          <ul>
+            <li>📚 <b>المكتبة</b> — WebView على /library</li>
+            <li>▶ <b>المحاضرات</b> (يوتيوب) — WebView على /lectures</li>
+            <li>💬 <b>المنتدى</b> — WebView على forum.6thultra.com مع SSO تلقائي</li>
+            <li>🧪 <b>المواد</b> — يفتح شاشة المواد الموجودة بالفعل</li>
+          </ul>
+        </li>
+        <li><b>الوصول السريع</b> — أيقونات صغيرة للصوت الحي وحل المسائل بالصورة والمفضلة.</li>
+        <li><b>الشريط السفلي</b> — الرئيسية / الدردشة / الصوت / حسابي.</li>
+      </ol>
+
+      <div class="note">
+        <b>ملاحظة فنية:</b> كل قسم لما الطالب يدوس عليه يفتح WebView <b>داخل التطبيق</b> (مش متصفح خارجي) — تجربة سلسة والـ session ينتقل تلقائياً للمنتدى عبر SSO. الألوان والخطوط نفس هوية الموقع الحالية.
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

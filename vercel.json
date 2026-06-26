@@ -1,0 +1,13 @@
+{
+  "buildCommand": "next build",
+  "framework": "nextjs",
+  "env": {
+    "NODE_VERSION": "20"
+  },
+  "crons": [
+    {
+      "path": "/api/cron/expire-subscriptions",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>سادس ألترا — اقتراح 3: لوحة الإنجاز اليومي</title>
+<style>
+  body{margin:0;background:#0b1220;font-family:'Tajawal','Cairo','Segoe UI',Tahoma,Arial,sans-serif;color:#fff;padding:40px 20px;display:flex;justify-content:center;}
+  .stage{display:flex;gap:60px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+
+  .phone{width:380px;background:#0e1729;border-radius:48px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,.55), inset 0 0 0 2px #1f2a44;position:relative;}
+  .phone::before{content:"";position:absolute;top:18px;left:50%;transform:translateX(-50%);width:120px;height:22px;background:#000;border-radius:14px;z-index:5;}
+  .screen{background:#0c1424;border-radius:36px;overflow:hidden;height:780px;display:flex;flex-direction:column;position:relative;}
+
+  .statusbar{height:42px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:12px;color:#cbd5e1;opacity:.7;}
+
+  /* Top greeting + streak */
+  .top{padding:4px 18px 10px;display:flex;align-items:center;justify-content:space-between;}
+  .top .who{font-size:15px;font-weight:800;}
+  .top .who small{display:block;font-size:11px;opacity:.6;font-weight:500;margin-top:2px;}
+  .streak{background:#152034;border:1px solid #1f2c44;padding:7px 11px;border-radius:14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px;}
+  .streak .fire{color:#fb923c;}
+
+  /* Progress card */
+  .progress{margin:0 16px 14px;padding:16px 18px;border-radius:22px;background:linear-gradient(135deg,#7c3aed 0%,#1e66aa 100%);position:relative;overflow:hidden;}
+  .progress h3{margin:0 0 4px;font-size:14px;font-weight:800;}
+  .progress p{margin:0 0 12px;font-size:11px;opacity:.85;}
+  .bar{height:8px;background:rgba(255,255,255,.18);border-radius:99px;overflow:hidden;}
+  .bar span{display:block;height:100%;width:65%;background:linear-gradient(90deg,#7dd3fc,#fff);border-radius:99px;}
+  .progress .pct{position:absolute;top:14px;left:18px;font-size:18px;font-weight:800;}
+
+  /* AI Quick Ask */
+  .ask-strip{margin:0 16px 14px;display:flex;gap:8px;background:#152034;border:1px solid #1f2c44;padding:10px 12px;border-radius:18px;align-items:center;}
+  .ask-strip .dot{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#38bdf8,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .ask-strip .text{flex:1;font-size:13px;opacity:.7;}
+  .ask-strip .mic{font-size:18px;opacity:.8;}
+
+  /* Carousel section */
+  .sect-title{padding:0 18px;font-size:12px;opacity:.55;margin-bottom:8px;display:flex;justify-content:space-between;}
+  .sect-title b{color:#fff;font-size:13px;}
+  .carousel{padding:0 16px 14px;display:flex;gap:10px;overflow:hidden;}
+  .ccard{min-width:120px;background:#152034;border:1px solid #1f2c44;border-radius:18px;padding:14px 12px;}
+  .ccard .ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px;}
+  .ccard.lib .ic{background:rgba(34,197,94,.18);color:#86efac;}
+  .ccard.yt .ic{background:rgba(239,68,68,.18);color:#fca5a5;}
+  .ccard.forum .ic{background:rgba(168,85,247,.18);color:#d8b4fe;}
+  .ccard.subj .ic{background:rgba(56,189,248,.18);color:#7dd3fc;}
+  .ccard h4{margin:0;font-size:13px;font-weight:800;}
+  .ccard p{margin:2px 0 0;font-size:10px;opacity:.55;}
+
+  /* Today list */
+  .today{padding:0 16px;display:flex;flex-direction:column;gap:8px;}
+  .row{display:flex;align-items:center;gap:10px;background:#152034;border:1px solid #1f2c44;border-radius:14px;padding:10px 12px;font-size:12px;}
+  .row .check{width:22px;height:22px;border-radius:50%;border:2px solid #1f2c44;}
+  .row.done .check{background:#22c55e;border-color:#22c55e;}
+  .row.done span{opacity:.5;text-decoration:line-through;}
+
+  .nav{margin-top:auto;background:#0e1729;border-top:1px solid #1f2c44;padding:10px 6px 18px;display:flex;justify-content:space-around;}
+  .nav .it{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;opacity:.55;}
+  .nav .it.active{opacity:1;color:#7dd3fc;}
+  .nav .it .ic2{font-size:20px;}
+
+  .legend{max-width:340px;color:#cbd5e1;font-size:14px;line-height:1.9;}
+  .legend h1{color:#fff;font-size:22px;margin:0 0 8px;}
+  .legend h1 span{color:#7dd3fc;}
+  .legend p{margin:0 0 12px;opacity:.85;}
+  .legend ul{padding-inline-start:20px;margin:0;}
+  .legend li{margin-bottom:8px;}
+  .legend li b{color:#fff;}
+</style>
+</head>
+<body>
+  <div class="stage">
+
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+
+        <div class="top">
+          <div class="who">أهلاً أحمد 👋<small>الخميس · يوم دراسي جديد</small></div>
+          <div class="streak"><span class="fire">🔥</span>7 أيام</div>
+        </div>
+
+        <div class="progress">
+          <div class="pct">65%</div>
+          <h3>تقدمك في المنهج</h3>
+          <p>أكملت 13 درس من أصل 20 لهذا الأسبوع</p>
+          <div class="bar"><span></span></div>
+        </div>
+
+        <div class="ask-strip">
+          <div class="dot">🤖</div>
+          <div class="text">اسأل الأستاذ ذكي عن أي شيء...</div>
+          <div class="mic">🎙</div>
+        </div>
+
+        <div class="sect-title"><b>الأقسام</b><span>الكل ‹</span></div>
+        <div class="carousel">
+          <div class="ccard lib"><div class="ic">📚</div><h4>المكتبة</h4><p>كتب وملخصات</p></div>
+          <div class="ccard yt"><div class="ic">▶</div><h4>المحاضرات</h4><p>فيديوهات</p></div>
+          <div class="ccard forum"><div class="ic">💬</div><h4>المنتدى</h4><p>ناقش زملاءك</p></div>
+          <div class="ccard subj"><div class="ic">🧪</div><h4>المواد</h4><p>المنهج</p></div>
+        </div>
+
+        <div class="sect-title"><b>مهام اليوم</b></div>
+        <div class="today">
+          <div class="row done"><div class="check">✓</div><span>مذاكرة درس الكيمياء</span></div>
+          <div class="row"><div class="check"></div><span>حل تمارين الرياضيات</span></div>
+          <div class="row"><div class="check"></div><span>مراجعة الأحياء</span></div>
+        </div>
+
+        <div class="nav">
+          <div class="it active"><span class="ic2">🏠</span>الرئيسية</div>
+          <div class="it"><span class="ic2">💬</span>الدردشة</div>
+          <div class="it"><span class="ic2">🎙</span>الصوت</div>
+          <div class="it"><span class="ic2">👤</span>حسابي</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <h1>اقتراح 3: <span>لوحة الإنجاز</span></h1>
+      <p>تركيز على تحفيز الطالب: شريط تقدم، عداد أيام دراسة متتالية، ومهام يومية يلصقها بنفسه.</p>
+      <ul>
+        <li><b>هيدر فيه streak</b> (عداد أيام) — يشجع الطالب يدخل كل يوم.</li>
+        <li><b>كرت تقدم المنهج</b> برسم بياني واضح.</li>
+        <li><b>شريط اسأل الذكاء</b> مدمج بأناقة في الواجهة.</li>
+        <li><b>كاروسيل أفقي</b> للأقسام (يستوعب أقسام جديدة مستقبلاً).</li>
+        <li><b>قائمة مهام اليوم</b> — تجربة شبيهة بـ Duolingo.</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>

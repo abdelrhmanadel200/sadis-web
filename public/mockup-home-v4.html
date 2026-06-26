@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>سادس ألترا — اقتراح 4: تصميم الفئات الملونة</title>
+<style>
+  body{margin:0;background:#0b1220;font-family:'Tajawal','Cairo','Segoe UI',Tahoma,Arial,sans-serif;color:#fff;padding:40px 20px;display:flex;justify-content:center;}
+  .stage{display:flex;gap:60px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+
+  .phone{width:380px;background:#0e1729;border-radius:48px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,.55), inset 0 0 0 2px #1f2a44;position:relative;}
+  .phone::before{content:"";position:absolute;top:18px;left:50%;transform:translateX(-50%);width:120px;height:22px;background:#000;border-radius:14px;z-index:5;}
+  .screen{background:#0c1424;border-radius:36px;overflow:hidden;height:780px;display:flex;flex-direction:column;position:relative;}
+
+  .statusbar{height:42px;display:flex;justify-content:space-between;align-items:center;padding:0 28px;font-size:12px;color:#cbd5e1;opacity:.7;}
+
+  /* Welcome strip */
+  .welcome{padding:4px 20px 8px;}
+  .welcome h2{margin:0;font-size:20px;font-weight:800;}
+  .welcome p{margin:2px 0 0;font-size:12px;opacity:.6;}
+
+  /* AI Banner */
+  .ai-banner{margin:14px 16px 18px;padding:18px 18px;border-radius:22px;background:linear-gradient(120deg,#1eaed1,#7c3aed);display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;}
+  .ai-banner::after{content:"";position:absolute;right:-30px;top:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.10);}
+  .ai-banner .robot{width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:24px;}
+  .ai-banner .txt h4{margin:0;font-size:15px;font-weight:800;}
+  .ai-banner .txt p{margin:2px 0 0;font-size:11px;opacity:.85;}
+  .ai-banner .go{margin-inline-start:auto;background:rgba(255,255,255,.22);padding:7px 12px;border-radius:10px;font-size:11px;font-weight:800;}
+
+  /* Big colorful tiles */
+  .tiles{padding:0 14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+  .tile{position:relative;border-radius:22px;padding:18px 14px;height:130px;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;}
+  .tile h3{margin:0;font-size:16px;font-weight:800;}
+  .tile p{margin:0;font-size:11px;opacity:.85;}
+  .tile .big{font-size:38px;line-height:1;align-self:flex-end;}
+  .tile.lib{background:linear-gradient(135deg,#22c55e,#0d6e3d);}
+  .tile.yt{background:linear-gradient(135deg,#ef4444,#7f1d1d);}
+  .tile.forum{background:linear-gradient(135deg,#a855f7,#5b1a8a);}
+  .tile.subj{background:linear-gradient(135deg,#0ea5e9,#0c4a6e);}
+
+  /* Quick tools */
+  .tools-title{padding:0 18px 6px;font-size:13px;opacity:.6;font-weight:700;}
+  .tools{padding:0 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .tool{background:#152034;border:1px solid #1f2c44;border-radius:16px;padding:14px 8px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .tool .ic{font-size:22px;}
+  .tool span{font-size:11px;font-weight:700;}
+
+  .nav{margin-top:auto;background:#0e1729;border-top:1px solid #1f2c44;padding:10px 6px 18px;display:flex;justify-content:space-around;}
+  .nav .it{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;opacity:.55;}
+  .nav .it.active{opacity:1;color:#7dd3fc;}
+  .nav .it .ic2{font-size:20px;}
+
+  .legend{max-width:340px;color:#cbd5e1;font-size:14px;line-height:1.9;}
+  .legend h1{color:#fff;font-size:22px;margin:0 0 8px;}
+  .legend h1 span{color:#7dd3fc;}
+  .legend p{margin:0 0 12px;opacity:.85;}
+  .legend ul{padding-inline-start:20px;margin:0;}
+  .legend li{margin-bottom:8px;}
+  .legend li b{color:#fff;}
+</style>
+</head>
+<body>
+  <div class="stage">
+
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+
+        <div class="welcome">
+          <h2>أهلاً أحمد 👋</h2>
+          <p>وش حنذاكر اليوم؟</p>
+        </div>
+
+        <div class="ai-banner">
+          <div class="robot">🤖</div>
+          <div class="txt">
+            <h4>الأستاذ ذكي</h4>
+            <p>اسأله أي سؤال في أي وقت</p>
+          </div>
+          <span class="go">ابدأ ←</span>
+        </div>
+
+        <div class="tiles">
+          <div class="tile lib">
+            <div><h3>المكتبة</h3><p>كتب وملخصات</p></div>
+            <div class="big">📚</div>
+          </div>
+          <div class="tile yt">
+            <div><h3>المحاضرات</h3><p>فيديوهات الأساتذة</p></div>
+            <div class="big">▶</div>
+          </div>
+          <div class="tile forum">
+            <div><h3>المنتدى</h3><p>ناقش زملاءك</p></div>
+            <div class="big">💬</div>
+          </div>
+          <div class="tile subj">
+            <div><h3>المواد</h3><p>كل المنهج</p></div>
+            <div class="big">🧪</div>
+          </div>
+        </div>
+
+        <div class="tools-title">أدوات سريعة</div>
+        <div class="tools">
+          <div class="tool"><span class="ic">🎙</span><span>صوت حي</span></div>
+          <div class="tool"><span class="ic">📷</span><span>حل بالصورة</span></div>
+          <div class="tool"><span class="ic">⭐</span><span>المفضلة</span></div>
+        </div>
+
+        <div class="nav">
+          <div class="it active"><span class="ic2">🏠</span>الرئيسية</div>
+          <div class="it"><span class="ic2">💬</span>الدردشة</div>
+          <div class="it"><span class="ic2">🎙</span>الصوت</div>
+          <div class="it"><span class="ic2">👤</span>حسابي</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <h1>اقتراح 4: <span>الفئات الملونة</span></h1>
+      <p>كل قسم له لون مميز يخليه سهل التعرف عليه — تجربة مرحة ومناسبة لطلاب الثانوية.</p>
+      <ul>
+        <li><b>بانر AI طولاني</b> — يلفت الانتباه بدون ما ياخد نص الشاشة.</li>
+        <li><b>4 بلاطات ملونة</b> بتدرجات لونية (أخضر/أحمر/بنفسجي/أزرق).</li>
+        <li><b>أدوات سريعة</b> في صف ثلاثي تحت.</li>
+        <li><b>الشريط السفلي</b> ثابت.</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>
