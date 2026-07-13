@@ -1,5 +1,6 @@
 'use client';
 
+import PlatformGate from '@/components/PlatformGate';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -35,7 +36,7 @@ interface Lecture {
   chapter_order: number;
 }
 
-export default function LecturesPage() {
+function LecturesPageInner() {
   const { user } = useAuth();
   const router = useRouter();
   const [lectures, setLectures] = useState<Lecture[]>([]);
@@ -158,7 +159,7 @@ export default function LecturesPage() {
           <div className="py-10 text-center text-muted">جاري التحميل...</div>
         ) : visible.length === 0 ? (
           <div className="py-10 text-center text-muted">
-            مفيش محاضرات في القسم ده دلوقتي.
+            لا توجد محاضرات في هذا القسم الآن.
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -340,4 +341,12 @@ function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+export default function LecturesPage() {
+  return (
+    <PlatformGate sectionName="المحاضرات">
+      <LecturesPageInner />
+    </PlatformGate>
+  );
 }

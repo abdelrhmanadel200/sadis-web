@@ -31,10 +31,10 @@ export default function VoicePage() {
   }, []);
 
   const stateLabel = {
-    idle: 'دوس واتكلم',
-    listening: 'بسمعك...',
-    thinking: 'بفكر...',
-    speaking: 'برد عليك...',
+    idle: 'اضغط وتكلّم',
+    listening: 'أسمعك...',
+    thinking: 'أفكّر...',
+    speaking: 'أردّ عليك...',
   }[state];
 
   async function startListening() {

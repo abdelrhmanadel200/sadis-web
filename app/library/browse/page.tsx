@@ -1,5 +1,6 @@
 'use client';
 
+import PlatformGate from '@/components/PlatformGate';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -20,7 +21,8 @@ interface PublicFile {
   user_id: string;
   title: string;
   description: string | null;
-  storage_path: string;
+  storage_path: string | null;
+  external_url: string | null;
   file_size_bytes: number | null;
   mime_type: string | null;
   uploaded_at: string;
@@ -32,7 +34,7 @@ interface PublicFile {
  * uploaded. The owner's name shows under each file, and there's a Report
  * button so copyright issues can be flagged fast.
  */
-export default function LibraryBrowsePage() {
+function LibraryBrowsePageInner() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [files, setFiles] = useState<PublicFile[]>([]);
@@ -47,7 +49,7 @@ export default function LibraryBrowsePage() {
     setLoading(true);
     const { data } = await supabase
       .from('user_library_files')
-      .select('id, user_id, title, description, storage_path, file_size_bytes, mime_type, uploaded_at')
+      .select('id, user_id, title, description, storage_path, external_url, file_size_bytes, mime_type, uploaded_at')
       .eq('is_public', true)
       .eq('removed', false)
       .order('uploaded_at', { ascending: false })
@@ -77,6 +79,12 @@ export default function LibraryBrowsePage() {
   }, [load]);
 
   const handleDownload = async (f: PublicFile) => {
+    // Link entries open directly.
+    if (f.external_url) {
+      window.open(f.external_url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (!f.storage_path) return;
     const { data, error } = await supabase.storage
       .from('user-library')
       .createSignedUrl(f.storage_path, 60 * 30);
@@ -120,7 +128,7 @@ export default function LibraryBrowsePage() {
             مكتبة المجتمع
           </h1>
           <p className="text-muted">
-            ملفات وملاحظات شاركها أعضاء المنصة. ادوس فلاج للإبلاغ عن أي محتوى ينتهك حقوق النشر.
+            ملفات وملاحظات شاركها أعضاء المنصة. اضغط على علامة الإبلاغ للتبليغ عن أي محتوى ينتهك حقوق النشر.
           </p>
         </header>
 
@@ -138,7 +146,7 @@ export default function LibraryBrowsePage() {
           <div className="text-muted text-center py-10">جاري التحميل...</div>
         ) : visible.length === 0 ? (
           <div className="card border border-dark-border rounded-2xl p-12 text-center text-muted">
-            مفيش ملفات مشاركة دلوقتي. ابدأ شارك ملفك من{' '}
+            لا توجد ملفات مُشاركة الآن. ابدأ بمشاركة ملفك من{' '}
             <Link href="/library" className="text-primary-light underline">
               مكتبتك
             </Link>
@@ -203,5 +211,13 @@ function SharedFileTile({
         </button>
       </div>
     </div>
+  );
+}
+
+export default function LibraryBrowsePage() {
+  return (
+    <PlatformGate sectionName="مكتبة المجتمع">
+      <LibraryBrowsePageInner />
+    </PlatformGate>
   );
 }

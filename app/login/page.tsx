@@ -3,16 +3,16 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mail, ArrowLeft, Sparkles } from 'lucide-react';
+import { Mail, Phone, ArrowLeft, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 /**
- * Login screen. Honors a `?next=<path>` query param so callers (e.g. the
- * Discourse SSO endpoint) can bounce the user here and have them sent back
- * to the original URL once signed in.
+ * Login screen. Two methods:
+ *   - Email  → Supabase email OTP → /otp?email=...
+ *   - Phone  → OTPIQ SMS via /api/phone-otp/send → /otp/phone?phone=...
  *
- * If the user is already authenticated when we land here, we skip the
- * email-OTP form entirely and redirect to `next` immediately.
+ * Honors a `?next=<path>` query param so callers (e.g. the Discourse SSO
+ * endpoint) can bounce the user here and back after login.
  */
 export default function LoginPage() {
   return (
@@ -22,10 +22,14 @@ export default function LoginPage() {
   );
 }
 
+type Method = 'email' | 'phone';
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [method, setMethod] = useState<Method>('email');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +37,7 @@ function LoginForm() {
   const rawNext = searchParams.get('next') ?? '';
   const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/chat';
 
-  // If we're already logged in, no need to ask for a code — just go.
+  // If we're already logged in, skip the form.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -47,9 +51,21 @@ function LoginForm() {
     };
   }, [next, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  /** Normalise an Iraqi phone number to E.164 (+964...). Accepts
+   *  0770..., 770..., +964770..., 00964770... */
+  function normalizePhone(raw: string): string | null {
+    let p = raw.replace(/[\s\-()]/g, '');
+    if (p.startsWith('00')) p = '+' + p.slice(2);
+    if (p.startsWith('+')) {
+      return /^\+\d{8,15}$/.test(p) ? p : null;
+    }
+    // Local Iraqi formats.
+    if (p.startsWith('0')) p = p.slice(1);
+    if (/^\d{9,10}$/.test(p)) return '+964' + p;
+    return null;
+  }
+
+  const submitEmail = async () => {
     const value = email.trim().toLowerCase();
     if (!value) {
       setError('أدخل البريد الإلكتروني');
@@ -73,7 +89,6 @@ function LoginForm() {
         },
       });
       if (error) throw error;
-      // Forward `next` to the OTP screen so it can complete the bounce.
       router.push(
         `/otp?email=${encodeURIComponent(value)}&next=${encodeURIComponent(next)}`,
       );
@@ -83,6 +98,41 @@ function LoginForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const submitPhone = async () => {
+    const e164 = normalizePhone(phone);
+    if (!e164) {
+      setError('أدخل رقم هاتف صحيح (مثال: 07701234567)');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/phone-otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: e164 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || 'تعذّر إرسال الرمز، حاول مرة ثانية');
+        return;
+      }
+      router.push(
+        `/otp/phone?phone=${encodeURIComponent(e164)}&next=${encodeURIComponent(next)}`,
+      );
+    } catch {
+      setError('تعذّر الاتصال بالخادم');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (method === 'email') void submitEmail();
+    else void submitPhone();
   };
 
   return (
@@ -106,29 +156,76 @@ function LoginForm() {
             <div>
               <h1 className="font-cairo font-bold text-2xl">تسجيل الدخول</h1>
               <p className="text-muted text-sm">
-                راح نرسلك كود تفعيل على بريدك الإلكتروني
+                {method === 'email'
+                  ? 'سنرسل لك رمز تفعيل على بريدك الإلكتروني'
+                  : 'سنرسل لك رمز تفعيل عبر رسالة نصية'}
               </p>
             </div>
           </div>
 
+          {/* Method toggle */}
+          <div className="grid grid-cols-2 gap-2 mb-5 p-1 rounded-xl bg-card/40 border border-dark-border">
+            <button
+              type="button"
+              onClick={() => { setMethod('email'); setError(null); }}
+              className={`flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold transition ${
+                method === 'email' ? 'bg-primary text-white' : 'text-muted'
+              }`}
+            >
+              <Mail className="w-4 h-4" /> البريد الإلكتروني
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMethod('phone'); setError(null); }}
+              className={`flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold transition ${
+                method === 'phone' ? 'bg-primary text-white' : 'text-muted'
+              }`}
+            >
+              <Phone className="w-4 h-4" /> رقم الهاتف
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium block mb-2">
-                البريد الإلكتروني
-              </label>
-              <div className="relative">
-                <Mail className="w-5 h-5 absolute top-1/2 -translate-y-1/2 start-4 text-muted" />
-                <input
-                  type="email"
-                  dir="ltr"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  className="input-field w-full rounded-xl ps-12 pe-4 py-3 outline-none focus:border-primary"
-                />
+            {method === 'email' ? (
+              <div>
+                <label className="text-sm font-medium block mb-2">
+                  البريد الإلكتروني
+                </label>
+                <div className="relative">
+                  <Mail className="w-5 h-5 absolute top-1/2 -translate-y-1/2 start-4 text-muted" />
+                  <input
+                    type="email"
+                    dir="ltr"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    className="input-field w-full rounded-xl ps-12 pe-4 py-3 outline-none focus:border-primary"
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="text-sm font-medium block mb-2">
+                  رقم الهاتف
+                </label>
+                <div className="relative">
+                  <Phone className="w-5 h-5 absolute top-1/2 -translate-y-1/2 start-4 text-muted" />
+                  <input
+                    type="tel"
+                    dir="ltr"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="07701234567"
+                    autoComplete="tel"
+                    className="input-field w-full rounded-xl ps-12 pe-4 py-3 outline-none focus:border-primary"
+                  />
+                </div>
+                <p className="text-xs text-muted mt-1.5">
+                  أدخل رقمك العراقي بأي صيغة، مثال: 07701234567
+                </p>
+              </div>
+            )}
 
             {error && (
               <div className="text-error text-sm bg-error/10 border border-error/30 rounded-lg px-3 py-2">
@@ -141,12 +238,12 @@ function LoginForm() {
               disabled={loading}
               className="btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? 'جاري إرسال الكود...' : 'أرسل كود الدخول'}
+              {loading ? 'جاري إرسال الرمز...' : 'أرسل رمز الدخول'}
             </button>
           </form>
 
           <div className="mt-6 text-center text-sm text-muted">
-            ما عندك حساب؟{' '}
+            أليس لديك حساب؟{' '}
             <Link href="/register" className="text-primary-light font-semibold">
               سجّل الآن
             </Link>

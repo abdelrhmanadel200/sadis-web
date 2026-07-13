@@ -175,7 +175,7 @@ function SubscriptionPageInner() {
         )}
         {zaincashStatus === 'failed' && (
           <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-            ❌ لم تكتمل عملية الدفع. لو خُصمت منك أي مبلغ سيُرَدّ تلقائياً خلال 24 ساعة، حاول مجدداً أو استخدم رمز التفعيل.
+            ❌ لم تكتمل عملية الدفع. إذا خُصم منك أي مبلغ فسيُرَدّ تلقائياً خلال 24 ساعة، حاول مجدداً أو استخدم رمز التفعيل.
           </div>
         )}
         {zaincashStatus === 'pending' && (
@@ -193,14 +193,13 @@ function SubscriptionPageInner() {
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6">
               <p className="font-semibold mb-1">طلبك تحت المراجعة</p>
               <p className="text-sm text-muted-foreground">
-                لو أكملت الدفع، سيُفعَّل الاشتراك تلقائياً خلال دقائق. لو ما
-                أكملت، اختر باقة بالأسفل لإعادة المحاولة.
+                إذا أكملت الدفع، سيُفعَّل الاشتراك تلقائياً خلال دقائق. وإن لم تُكمِل، اختر باقة بالأسفل لإعادة المحاولة.
               </p>
             </div>
           ) : (
             <div className="rounded-2xl border border-border bg-card/40 p-6 text-center">
               <p className="text-muted-foreground mb-4">
-                ما عندك اشتراك نشط. اختر باقة بالأسفل للبدء.
+                ليس لديك اشتراك نشط. اختر باقة بالأسفل للبدء.
               </p>
             </div>
           )}
@@ -424,10 +423,9 @@ function RedeemCodeSection({ onRedeemed }: { onRedeemed: () => void }) {
 
   return (
     <section className="mb-12">
-      <h2 className="text-xl font-bold mb-3">عندك رمز تفعيل؟</h2>
+      <h2 className="text-xl font-bold mb-3">هل لديك رمز تفعيل؟</h2>
       <p className="text-sm text-muted-foreground mb-4">
-        لو دفعت للموزّع نقداً واستلمت رمز تفعيل، أدخله هنا لتفعيل الاشتراك
-        مباشرة.
+        إذا دفعت للموزّع نقداً واستلمت رمز تفعيل، فأدخله هنا لتفعيل الاشتراك مباشرة.
       </p>
       <form
         onSubmit={submit}

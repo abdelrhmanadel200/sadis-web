@@ -337,7 +337,7 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
       const raw = err instanceof Error ? err.message : '';
       // Map common error signatures onto user-friendly Arabic copy and a
       // recovery CTA. Each branch ends up as a single assistant bubble.
-      let errMsg = 'عذراً، صار خطأ مع الخادم. حاول بعد شوية.\n\n[ACTION:retry|إعادة المحاولة]';
+      let errMsg = 'عذراً، حدث خطأ في الخادم. حاول بعد قليل.\n\n[ACTION:retry|إعادة المحاولة]';
       if (/network|fetch|Failed to fetch|TypeError/i.test(raw)) {
         errMsg =
           'يبدو أن الاتصال بالإنترنت انقطع. تأكد من اتصالك وحاول مرة أخرى.\n\n[ACTION:retry|إعادة المحاولة]';
@@ -468,7 +468,7 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
               </h1>
               <p className="text-muted mt-6 text-lg">
                 {subject
-                  ? `اسألني أي سؤال من منهج ${subject.name_ar} أو دوس على اقتراح من اللي تحت`
+                  ? `اسألني أي سؤال من منهج ${subject.name_ar} أو اضغط على أحد الاقتراحات بالأسفل`
                   : 'اختر مادة من الأعلى أو اسألني مباشرة أي سؤال من منهجك'}
               </p>
 

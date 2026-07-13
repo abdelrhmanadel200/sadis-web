@@ -154,7 +154,7 @@ export function subscriptionActivatedEmail(opts: {
     <p>تم تفعيل اشتراكك في باقة <strong>${opts.planName}</strong> بنجاح.</p>
     <p>تاريخ انتهاء الاشتراك: <strong>${expiry}</strong></p>
     <p>رقم الفاتورة: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace;">${opts.invoiceId}</code></p>
-    <p>تقدر تبدأ استخدام الأستاذ ذكي من الآن.</p>
+    <p>يمكنك البدء في استخدام الأستاذ ذكي الآن.</p>
   `;
   return sendEmail({
     to: opts.to,

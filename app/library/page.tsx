@@ -1,5 +1,6 @@
 'use client';
 
+import PlatformGate from '@/components/PlatformGate';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -51,7 +52,8 @@ interface UserFile {
   id: string;
   title: string;
   description: string | null;
-  storage_path: string;
+  storage_path: string | null;
+  external_url: string | null;
   file_size_bytes: number | null;
   mime_type: string | null;
   uploaded_at: string;
@@ -70,7 +72,7 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
  *
  * كل المحفوظات والملفات خاصة بكل مستخدم لوحده عبر RLS.
  */
-export default function LibraryPage() {
+function LibraryPageInner() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
@@ -80,6 +82,12 @@ export default function LibraryPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Upload method: file upload or external link (matching admin books).
+  const [uploadMode, setUploadMode] = useState<'file' | 'link'>('file');
+  const [linkTitle, setLinkTitle] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  // Whether the new item is shared to the community library (public).
+  const [shareToCommunity, setShareToCommunity] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
@@ -98,7 +106,7 @@ export default function LibraryPage() {
         .order('saved_at', { ascending: false }),
       supabase
         .from('user_library_files')
-        .select('*')
+        .select('id, title, description, storage_path, external_url, file_size_bytes, mime_type, uploaded_at')
         .eq('user_id', user.id)
         .order('uploaded_at', { ascending: false }),
     ]);
@@ -177,6 +185,7 @@ export default function LibraryPage() {
         storage_path: path,
         file_size_bytes: file.size,
         mime_type: file.type || null,
+        is_public: shareToCommunity,
       });
       if (insertErr) throw insertErr;
       await load();
@@ -190,7 +199,49 @@ export default function LibraryPage() {
     }
   };
 
+  // Add a library entry by external link (no file upload), mirroring the
+  // admin books system where a book can be a link or an uploaded file.
+  const handleAddLink = async () => {
+    if (!user) return;
+    setUploadError(null);
+    const title = linkTitle.trim();
+    const url = linkUrl.trim();
+    if (!title) {
+      setUploadError('أدخل عنواناً للرابط');
+      return;
+    }
+    if (!/^https?:\/\/.+/i.test(url)) {
+      setUploadError('أدخل رابطاً صحيحاً يبدأ بـ http أو https');
+      return;
+    }
+    setUploading(true);
+    try {
+      const { error: insertErr } = await supabase.from('user_library_files').insert({
+        user_id: user.id,
+        title: title.slice(0, 120),
+        external_url: url,
+        is_public: shareToCommunity,
+      });
+      if (insertErr) throw insertErr;
+      setLinkTitle('');
+      setLinkUrl('');
+      await load();
+    } catch (e) {
+      setUploadError(
+        e instanceof Error ? e.message : 'تعذّر إضافة الرابط، حاول مرة ثانية',
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleDownload = async (f: UserFile) => {
+    // Link entries just open in a new tab.
+    if (f.external_url) {
+      window.open(f.external_url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (!f.storage_path) return;
     // Create a short-lived signed URL because the bucket is private.
     const { data, error } = await supabase.storage
       .from('user-library')
@@ -203,10 +254,12 @@ export default function LibraryPage() {
   };
 
   const handleDeleteFile = async (f: UserFile) => {
-    if (!confirm('حذف الملف نهائياً؟')) return;
-    // Optimistic remove + storage cleanup + row delete.
+    if (!confirm('حذف العنصر نهائياً؟')) return;
+    // Optimistic remove + storage cleanup (files only) + row delete.
     setFiles((prev) => prev.filter((x) => x.id !== f.id));
-    await supabase.storage.from('user-library').remove([f.storage_path]);
+    if (f.storage_path) {
+      await supabase.storage.from('user-library').remove([f.storage_path]);
+    }
     await supabase.from('user_library_files').delete().eq('id', f.id);
   };
 
@@ -247,7 +300,7 @@ export default function LibraryPage() {
               مكتبتي
             </h1>
             <p className="text-muted">
-              المحفوظات بزرار القلب + ملفاتك اللي رفعتها بنفسك.
+              المحفوظات بزر القلب + ملفاتك التي رفعتها بنفسك.
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -272,16 +325,39 @@ export default function LibraryPage() {
           </div>
         </header>
 
-        {/* Upload zone */}
+        {/* Upload zone — file OR link, like the admin books system */}
         <section className="mb-8 card border border-dashed border-primary/40 rounded-2xl p-5">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+          <h2 className="font-bold text-lg mb-1">أضف إلى المكتبة</h2>
+          <p className="text-sm text-muted mb-4">
+            ارفع ملفاً أو أضف رابطاً خارجياً — تماماً مثل إضافة كتاب. يمكنك
+            مشاركته مع مكتبة المجتمع ليستفيد منه بقية الطلاب.
+          </p>
+
+          {/* Mode toggle */}
+          <div className="inline-flex gap-1 p-1 rounded-xl bg-card/40 border border-dark-border mb-4">
+            <button
+              onClick={() => { setUploadMode('file'); setUploadError(null); }}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${
+                uploadMode === 'file' ? 'bg-primary text-white' : 'text-muted'
+              }`}
+            >
+              رفع ملف
+            </button>
+            <button
+              onClick={() => { setUploadMode('link'); setUploadError(null); }}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${
+                uploadMode === 'link' ? 'bg-primary text-white' : 'text-muted'
+              }`}
+            >
+              إضافة رابط
+            </button>
+          </div>
+
+          {uploadMode === 'file' ? (
             <div>
-              <h2 className="font-bold text-lg mb-1">رفع ملف لمكتبتي</h2>
-              <p className="text-sm text-muted">
-                PDF أو صورة أو ملاحظات — حد أقصى ٥٠ ميجابايت. الملفات خاصة بيك أنت فقط.
+              <p className="text-sm text-muted mb-3">
+                PDF أو صورة أو ملاحظات — حد أقصى ٥٠ ميجابايت.
               </p>
-            </div>
-            <div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -310,7 +386,55 @@ export default function LibraryPage() {
                 )}
               </button>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3 max-w-xl">
+              <input
+                value={linkTitle}
+                onChange={(e) => setLinkTitle(e.target.value)}
+                placeholder="عنوان الملف / الكتاب"
+                className="input-field w-full rounded-xl px-4 py-2.5 outline-none focus:border-primary"
+              />
+              <input
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                dir="ltr"
+                placeholder="https://drive.google.com/..."
+                className="input-field w-full rounded-xl px-4 py-2.5 outline-none focus:border-primary"
+              />
+              <button
+                onClick={() => void handleAddLink()}
+                disabled={uploading}
+                className="inline-flex items-center gap-2 bg-primary text-white font-bold px-5 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    جاري الإضافة...
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="w-4 h-4" />
+                    أضف الرابط
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Share to community */}
+          <label className="mt-4 flex items-center gap-2 text-sm cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={shareToCommunity}
+              onChange={(e) => setShareToCommunity(e.target.checked)}
+              className="w-4 h-4 accent-primary"
+            />
+            <span className="flex items-center gap-1.5">
+              <Globe className="w-4 h-4 text-primary-light" />
+              مشاركة مع مكتبة المجتمع (يراها بقية الطلاب)
+            </span>
+          </label>
+
           {uploadError && (
             <p className="mt-3 text-sm text-error">{uploadError}</p>
           )}
@@ -341,7 +465,7 @@ export default function LibraryPage() {
           <div className="card border border-dark-border rounded-2xl p-12 text-center">
             <Heart className="w-12 h-12 mx-auto text-muted mb-3" />
             <p className="text-muted mb-4">
-              مكتبتك فاضية. ارفع ملف، أو ادخل على الكتب أو المحاضرات وادوس على القلب لتحفظهم هنا.
+              مكتبتك فارغة. ارفع ملفاً، أو ادخل إلى الكتب أو المحاضرات واضغط على القلب لتحفظها هنا.
             </p>
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <Link
@@ -591,5 +715,13 @@ function VideoModal({
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LibraryPage() {
+  return (
+    <PlatformGate sectionName="المكتبة">
+      <LibraryPageInner />
+    </PlatformGate>
   );
 }

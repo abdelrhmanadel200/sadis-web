@@ -1,5 +1,6 @@
 'use client';
 
+import PlatformGate from '@/components/PlatformGate';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -14,7 +15,7 @@ const TYPES: { v: Product['type'] | 'all'; l: string }[] = [
   { v: 'video', l: 'فيديوهات' },
 ];
 
-export default function StorePage() {
+function StorePageInner() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filter, setFilter] = useState<Product['type'] | 'all'>('all');
   const [loading, setLoading] = useState(true);
@@ -120,5 +121,13 @@ function ProductCard({ product }: { product: Product }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+export default function StorePage() {
+  return (
+    <PlatformGate sectionName="المتجر">
+      <StorePageInner />
+    </PlatformGate>
   );
 }

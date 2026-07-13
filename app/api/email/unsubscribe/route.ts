@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   return html(
     `<h2 style="color:#0369a1;">تم إلغاء الاشتراك</h2>
      <p>لن تستلم رسائل أخرى من سادس ألترا.</p>
-     <p style="font-size:14px;color:#64748b;margin-top:24px;">لو كان ده عن طريق الخطأ، تواصل معنا على <a href="mailto:support@6thultra.com">support@6thultra.com</a>.</p>`,
+     <p style="font-size:14px;color:#64748b;margin-top:24px;">إذا كان ذلك عن طريق الخطأ، فتواصل معنا على <a href="mailto:support@6thultra.com">support@6thultra.com</a>.</p>`,
   );
 }
 

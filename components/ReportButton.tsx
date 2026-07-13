@@ -93,7 +93,7 @@ function ReportDialog({
       }
       setDone(
         data.already_reported
-          ? 'البلاغ موجود مسبقاً، فريق الإدارة بيراجعه.'
+          ? 'البلاغ موجود مسبقاً، وفريق الإدارة يراجعه.'
           : 'تم استلام بلاغك، شكراً. سيتم مراجعته في أقرب وقت.',
       );
     } catch {
@@ -134,7 +134,7 @@ function ReportDialog({
         ) : (
           <>
             <p className="text-sm text-muted mb-4">
-              لو شفت محتوى ينتهك حقوق النشر أو غير لائق، بلّغنا وسنراجعه في
+              إذا رأيت محتوى ينتهك حقوق النشر أو غير لائق، بلّغنا وسنراجعه في
               أقرب وقت. كل البلاغات سرّية.
             </p>
 
@@ -163,7 +163,7 @@ function ReportDialog({
               onChange={(e) => setDetails(e.target.value)}
               rows={3}
               maxLength={1000}
-              placeholder="اشرح اللي بتشتكي منه، الكتاب الأصلي، رابط الصفحة الرسمية…"
+              placeholder="اشرح ما تشتكي منه، الكتاب الأصلي، رابط الصفحة الرسمية…"
               className="w-full rounded-xl bg-card/40 border border-dark-border px-3 py-2 text-sm outline-none focus:border-primary"
             />
 

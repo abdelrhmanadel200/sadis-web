@@ -1,5 +1,6 @@
 'use client';
 
+import PlatformGate from '@/components/PlatformGate';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -29,7 +30,7 @@ interface Book {
   sort_order: number;
 }
 
-export default function BooksPage() {
+function BooksPageInner() {
   const { user } = useAuth();
   const router = useRouter();
   const [books, setBooks] = useState<Book[]>([]);
@@ -142,7 +143,7 @@ export default function BooksPage() {
           <div className="py-10 text-center text-muted">جاري التحميل...</div>
         ) : visible.length === 0 ? (
           <div className="py-10 text-center text-muted">
-            مفيش كتب في القسم ده دلوقتي.
+            لا توجد كتب في هذا القسم الآن.
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -245,5 +246,13 @@ function BookCard({
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BooksPage() {
+  return (
+    <PlatformGate sectionName="الكتب">
+      <BooksPageInner />
+    </PlatformGate>
   );
 }

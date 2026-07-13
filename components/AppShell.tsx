@@ -148,7 +148,8 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
           <NavLink href="/subjects" active={pathname.startsWith('/subjects')} icon={<BookOpen className="w-5 h-5" />} label="المواد" />
           <NavLink href="/lectures" active={pathname.startsWith('/lectures')} icon={<PlayCircle className="w-5 h-5" />} label="المحاضرات" />
           <NavLink href="/books" active={pathname.startsWith('/books')} icon={<BookMarked className="w-5 h-5" />} label="الكتب" />
-          <NavLink href="/library" active={pathname.startsWith('/library')} icon={<Library className="w-5 h-5" />} label="مكتبتي" />
+          <NavLink href="/library" active={pathname === '/library'} icon={<Library className="w-5 h-5" />} label="مكتبتي" />
+          <NavLink href="/library/browse" active={pathname.startsWith('/library/browse')} icon={<UsersIcon className="w-5 h-5" />} label="مكتبة المجتمع" />
           <a
             href="https://forum.6thultra.com/session/sso"
             rel="noopener noreferrer"
@@ -167,7 +168,7 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
         </div>
         <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
           {sessions.length === 0 && (
-            <div className="text-sm text-muted px-3 py-2">ما عدك محادثات بعد</div>
+            <div className="text-sm text-muted px-3 py-2">لا توجد لديك محادثات بعد</div>
           )}
           {sessions.map((s) => (
             <Link

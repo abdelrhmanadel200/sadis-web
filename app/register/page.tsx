@@ -72,7 +72,7 @@ export default function RegisterPage() {
             <div>
               <h1 className="font-cairo font-bold text-2xl">إنشاء حساب</h1>
               <p className="text-muted text-sm">
-                خليك جاهز للدراسة مع الأستاذ ذكي
+                كن جاهزاً للدراسة مع الأستاذ ذكي
               </p>
             </div>
           </div>
