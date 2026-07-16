@@ -63,10 +63,14 @@ export async function GET(req: NextRequest) {
   if (!sub) return redirect('not_found');
 
   if (status !== 'success') {
+    // Only a still-pending order may be downgraded — never touch a row that is
+    // already active/refunded/cancelled (a replayed failed/pending token must
+    // not revoke a paid subscription).
     await admin
       .from('subscriptions')
       .update({ status: status === 'pending' ? 'pending' : 'failed' })
-      .eq('id', sub.id);
+      .eq('id', sub.id)
+      .eq('status', 'pending');
     return redirect(status === 'pending' ? 'pending' : 'failed', sub.id);
   }
 
@@ -76,6 +80,9 @@ export async function GET(req: NextRequest) {
   const startsAt = new Date();
   const expiresAt = new Date(startsAt.getTime() + duration * 86_400_000);
 
+  // Activate ONLY a pending/failed order. This makes the callback idempotent
+  // and replay-safe: an already-active row won't have its starts_at re-anchored
+  // forward, and a refunded/cancelled row can't be silently revived.
   await admin
     .from('subscriptions')
     .update({
@@ -86,7 +93,8 @@ export async function GET(req: NextRequest) {
       payment_method: 'zaincash',
       metadata: { zaincash: payload as unknown as Record<string, unknown> },
     })
-    .eq('id', sub.id);
+    .eq('id', sub.id)
+    .in('status', ['pending', 'failed']);
 
   return redirect('success', sub.id);
 }

@@ -238,6 +238,28 @@ function SubscriptionPageInner() {
   );
 }
 
+// New pricing-model display labels. The DB `name_ar`/`description_ar` columns
+// still hold the OLD model's copy, so we override by plan id everywhere a plan
+// is shown to the user (current-plan card, plan grid, redeem toast).
+const PLAN_LABELS: Record<string, { name: string; desc: string }> = {
+  lifetime_access: {
+    name: 'الباقة السنوية',
+    desc: 'كل الأقسام والأستاذ ذكي لمدة سنة كاملة.',
+  },
+  chat_monthly: {
+    name: 'الباقة الأساسية',
+    desc: 'كل الأقسام لمدة سنة، والأستاذ ذكي يتجدد شهرياً.',
+  },
+};
+
+function planName(id?: string | null, fallback?: string | null): string {
+  return (id && PLAN_LABELS[id]?.name) || fallback || id || '';
+}
+
+function planDesc(id?: string | null, fallback?: string | null): string | null {
+  return (id && PLAN_LABELS[id]?.desc) || fallback || null;
+}
+
 function ActiveCard({ sub }: { sub: Subscription }) {
   const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
   const daysLeft = expiresAt
@@ -258,11 +280,11 @@ function ActiveCard({ sub }: { sub: Subscription }) {
         </span>
       </div>
       <h3 className="text-2xl font-bold mb-2">
-        {sub.plan?.name_ar ?? sub.plan_id}
+        {planName(sub.plan_id, sub.plan?.name_ar)}
       </h3>
-      {sub.plan?.description_ar && (
+      {planDesc(sub.plan_id, sub.plan?.description_ar) && (
         <p className="text-sm text-muted-foreground mb-4">
-          {sub.plan.description_ar}
+          {planDesc(sub.plan_id, sub.plan?.description_ar)}
         </p>
       )}
       <div className="flex flex-wrap gap-4 text-sm">
@@ -295,21 +317,11 @@ function PlanCard({
           : 'border-border bg-card/40 hover:border-primary/40'
       }`}
     >
-      {/* Display names are overridden here so the new pricing model reads
-          correctly even if the DB `name_ar` still holds the old label. */}
-      <h3 className="font-bold text-lg">
-        {plan.id === 'lifetime_access'
-          ? 'الباقة السنوية'
-          : plan.id === 'chat_monthly'
-            ? 'الباقة الأساسية'
-            : plan.name_ar}
-      </h3>
+      {/* Names/descriptions come from PLAN_LABELS so the new pricing model
+          reads correctly even though the DB still holds the old copy. */}
+      <h3 className="font-bold text-lg">{planName(plan.id, plan.name_ar)}</h3>
       <p className="text-sm text-muted-foreground min-h-[40px]">
-        {plan.id === 'lifetime_access'
-          ? 'كل الأقسام والأستاذ ذكي لمدة سنة كاملة.'
-          : plan.id === 'chat_monthly'
-            ? 'كل الأقسام لمدة سنة، والأستاذ ذكي يتجدد شهرياً.'
-            : plan.description_ar}
+        {planDesc(plan.id, plan.description_ar)}
       </p>
       <div className="flex items-baseline gap-2 mt-2">
         {plan.price_iqd != null ? (
@@ -413,6 +425,7 @@ function RedeemCodeSection({ onRedeemed }: { onRedeemed: () => void }) {
       const data = (await res.json()) as {
         ok: boolean;
         message?: string;
+        plan_id?: string;
         plan_name?: string;
         expires_at?: string;
       };
@@ -422,7 +435,7 @@ function RedeemCodeSection({ onRedeemed }: { onRedeemed: () => void }) {
       }
       const expiry = data.expires_at ? new Date(data.expires_at) : null;
       setSuccess(
-        `تم تفعيل: ${data.plan_name}${expiry ? ` — ينتهي ${expiry.toLocaleDateString('ar-IQ')}` : ''}`,
+        `تم تفعيل: ${planName(data.plan_id, data.plan_name)}${expiry ? ` — ينتهي ${expiry.toLocaleDateString('ar-IQ')}` : ''}`,
       );
       setCode('');
       onRedeemed();

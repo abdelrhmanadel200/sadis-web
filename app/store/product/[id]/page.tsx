@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import PlatformGate from '@/components/PlatformGate';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
 import type { Product, Purchase } from '@/lib/types';
@@ -17,7 +18,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 
-export default function ProductDetailPage() {
+function ProductDetailPageInner() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -213,5 +214,16 @@ export default function ProductDetailPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+// The store is a section gated on an active subscription (sectionsActive), so
+// the product detail page must be gated too — otherwise a non-subscriber could
+// deep-link past the gated listing straight to a product.
+export default function ProductDetailPage() {
+  return (
+    <PlatformGate sectionName="المتجر">
+      <ProductDetailPageInner />
+    </PlatformGate>
   );
 }

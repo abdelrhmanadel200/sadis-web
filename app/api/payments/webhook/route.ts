@@ -113,6 +113,8 @@ export async function POST(req: NextRequest) {
       now.getTime() + (sub.plan.duration_days || 30) * 24 * 60 * 60 * 1000,
     );
 
+    // Activate ONLY a pending/failed order — a replayed or duplicate charge
+    // webhook must not re-anchor starts_at forward or revive a refunded row.
     await admin
       .from('subscriptions')
       .update({
@@ -123,7 +125,8 @@ export async function POST(req: NextRequest) {
         payment_method: raw['PAYMENT_METHOD'] || raw['PAYMENT_TYPE'] || null,
         updated_at: now.toISOString(),
       })
-      .eq('id', sub.id);
+      .eq('id', sub.id)
+      .in('status', ['pending', 'failed']);
 
     // Best-effort confirmation email (only if the user hasn't unsubscribed).
     const { data: userRes } = await admin.auth.admin.getUserById(sub.user_id);
