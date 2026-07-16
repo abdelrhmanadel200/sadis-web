@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { computeEntitlements, type SubRow } from '@/lib/entitlements';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -104,20 +105,16 @@ export async function checkChatAccess(req?: Request): Promise<AccessDecision> {
     };
   }
 
-  // 1. Active chat_monthly subscription? Anyone with a live chat sub
-  // gets full curriculum AI access.
-  const { data: chatSub } = await admin
+  // 1. Active AI entitlement? The 25k plan grants AI for 30 days, the 250k
+  // plan for a full year — computeEntitlements derives the right window per
+  // plan. Anyone with live AI access gets full curriculum AI.
+  const { data: subRows } = await admin
     .from('subscriptions')
-    .select('expires_at')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .eq('plan_id', 'chat_monthly')
-    .gt('expires_at', new Date().toISOString())
-    .order('expires_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (chatSub) {
-    return { allowed: true, chatActive: true, expiresAt: chatSub.expires_at };
+    .select('plan_id, status, starts_at, expires_at')
+    .eq('user_id', userId);
+  const ent = computeEntitlements((subRows ?? []) as SubRow[]);
+  if (ent.aiActive) {
+    return { allowed: true, chatActive: true, expiresAt: ent.aiExpiresAt };
   }
 
   // 2. Trial open OR signed-in non-subscriber → allowed in DEMO MODE.

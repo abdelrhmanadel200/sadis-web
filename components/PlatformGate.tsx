@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Lock, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { computeEntitlements, type SubRow } from '@/lib/entitlements';
 
 /**
  * Client-side gate for the paid community sections (library, lectures,
@@ -34,17 +35,15 @@ export function usePlatformAccess(): AccessState {
       }
       setState('checking');
       try {
-        const nowIso = new Date().toISOString();
+        // Sections unlock with ANY active plan (25k OR 250k), both of which
+        // grant a full year of section access. See lib/entitlements.ts.
         const { data } = await supabase
           .from('subscriptions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .eq('plan_id', 'lifetime_access')
-          .gt('expires_at', nowIso)
-          .limit(1);
+          .select('plan_id, status, starts_at, expires_at')
+          .eq('user_id', user.id);
+        const ent = computeEntitlements((data ?? []) as SubRow[]);
         if (!cancelled) {
-          setState((data && data.length > 0) ? 'granted' : 'denied');
+          setState(ent.sectionsActive ? 'granted' : 'denied');
         }
       } catch {
         // On error, fail CLOSED (denied) — the client explicitly wants

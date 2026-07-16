@@ -295,9 +295,21 @@ function PlanCard({
           : 'border-border bg-card/40 hover:border-primary/40'
       }`}
     >
-      <h3 className="font-bold text-lg">{plan.name_ar}</h3>
+      {/* Display names are overridden here so the new pricing model reads
+          correctly even if the DB `name_ar` still holds the old label. */}
+      <h3 className="font-bold text-lg">
+        {plan.id === 'lifetime_access'
+          ? 'الباقة السنوية'
+          : plan.id === 'chat_monthly'
+            ? 'الباقة الأساسية'
+            : plan.name_ar}
+      </h3>
       <p className="text-sm text-muted-foreground min-h-[40px]">
-        {plan.description_ar}
+        {plan.id === 'lifetime_access'
+          ? 'كل الأقسام والأستاذ ذكي لمدة سنة كاملة.'
+          : plan.id === 'chat_monthly'
+            ? 'كل الأقسام لمدة سنة، والأستاذ ذكي يتجدد شهرياً.'
+            : plan.description_ar}
       </p>
       <div className="flex items-baseline gap-2 mt-2">
         {plan.price_iqd != null ? (
@@ -311,38 +323,38 @@ function PlanCard({
           <span className="text-3xl font-extrabold">${plan.price_usd}</span>
         )}
         <span className="text-xs text-muted-foreground">
-          {plan.track === 'lifetime' ? 'اشتراك سنوي' : `/${plan.duration_days} يوم`}
+          {plan.track === 'lifetime' ? 'سنوي — كل شيء' : 'الأقسام سنة + الذكاء شهري'}
         </span>
       </div>
       <ul className="text-sm text-muted-foreground space-y-1 mt-2 mb-4">
         {plan.track === 'lifetime' ? (
           <>
             <li className="flex items-center gap-2">
-              <Check className="w-3.5 h-3.5 text-primary" /> فتح المكتبة لمدة سنة
+              <Check className="w-3.5 h-3.5 text-primary" /> كل الأقسام (المكتبة والمحاضرات والكتب) لمدة سنة
             </li>
             <li className="flex items-center gap-2">
-              <Check className="w-3.5 h-3.5 text-primary" /> فتح المحاضرات لمدة سنة
+              <Check className="w-3.5 h-3.5 text-primary" /> الأستاذ ذكي لمدة سنة كاملة
             </li>
             <li className="flex items-center gap-2">
-              <Check className="w-3.5 h-3.5 text-primary" /> دخول المنتدى ومناقشات الزملاء
+              <Check className="w-3.5 h-3.5 text-primary" /> 50 سؤال نصي و5 صوتية يومياً
             </li>
             <li className="flex items-center gap-2">
-              <Check className="w-3.5 h-3.5 text-primary" /> تجديد سنوي
+              <Check className="w-3.5 h-3.5 text-primary" /> بدون تجديد شهري للذكاء
             </li>
           </>
         ) : (
           <>
             <li className="flex items-center gap-2">
-              <Check className="w-3.5 h-3.5 text-primary" /> 50 سؤال نصي يومياً
+              <Check className="w-3.5 h-3.5 text-primary" /> كل الأقسام (المكتبة والمحاضرات والكتب) لمدة سنة
             </li>
             <li className="flex items-center gap-2">
-              <Check className="w-3.5 h-3.5 text-primary" /> 5 أسئلة صوتية يومياً
+              <Check className="w-3.5 h-3.5 text-primary" /> الأستاذ ذكي لمدة شهر (يتجدد شهرياً)
+            </li>
+            <li className="flex items-center gap-2">
+              <Check className="w-3.5 h-3.5 text-primary" /> 50 سؤال نصي و5 صوتية يومياً
             </li>
             <li className="flex items-center gap-2">
               <Check className="w-3.5 h-3.5 text-primary" /> حل المسائل بالصورة
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="w-3.5 h-3.5 text-primary" /> يتجدد شهرياً
             </li>
           </>
         )}
