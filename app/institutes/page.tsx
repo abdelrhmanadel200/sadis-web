@@ -53,7 +53,19 @@ function loadLeaflet(): Promise<unknown> {
 function InstitutesMap({ institutes }: { institutes: Institute[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
+  const layerRef = useRef<unknown>(null);
   const [mapError, setMapError] = useState(false);
+
+  // Tear the map down only on unmount (not on every data change) so we don't
+  // leak the Leaflet instance or hit "Map container is already initialized".
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (mapRef.current) (mapRef.current as any).remove();
+      mapRef.current = null;
+      layerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +84,12 @@ function InstitutesMap({ institutes }: { institutes: Institute[] }) {
             attribution: '© OpenStreetMap',
             maxZoom: 19,
           }).addTo(mapRef.current);
+          layerRef.current = LL.layerGroup().addTo(mapRef.current);
         }
+        // Clear previous markers before re-adding so a re-render (e.g. an auth
+        // token refresh) doesn't stack duplicate pins.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (layerRef.current as any)?.clearLayers();
         const icon = LL.icon({
           iconUrl: MARKER_ICON,
           iconRetinaUrl: MARKER_ICON_2X,
@@ -84,13 +101,14 @@ function InstitutesMap({ institutes }: { institutes: Institute[] }) {
         });
         const bounds: [number, number][] = [];
         withCoords.forEach((i) => {
-          const marker = LL.marker([i.lat, i.lng], { icon }).addTo(mapRef.current);
+          const marker = LL.marker([i.lat, i.lng], { icon });
           const place = [i.governorate, i.area].filter(Boolean).join(' - ');
           marker.bindPopup(
             `<b>${i.name}</b>${place ? `<br/>${place}` : ''}${
               i.phone ? `<br/>${i.phone}` : ''
             }`,
           );
+          marker.addTo(layerRef.current);
           bounds.push([i.lat as number, i.lng as number]);
         });
         if (bounds.length > 0) {
