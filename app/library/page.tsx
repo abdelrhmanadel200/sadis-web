@@ -89,6 +89,8 @@ function LibraryPageInner() {
   const [linkUrl, setLinkUrl] = useState('');
   // Whether the new item is shared to the community library (public).
   const [shareToCommunity, setShareToCommunity] = useState(true);
+  // Member must accept the terms of use before contributing.
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
@@ -371,7 +373,7 @@ function LibraryPageInner() {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
+                disabled={uploading || !acceptedTerms}
                 className="inline-flex items-center gap-2 bg-primary text-white font-bold px-5 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition"
               >
                 {uploading ? (
@@ -404,7 +406,7 @@ function LibraryPageInner() {
               />
               <button
                 onClick={() => void handleAddLink()}
-                disabled={uploading}
+                disabled={uploading || !acceptedTerms}
                 className="inline-flex items-center gap-2 bg-primary text-white font-bold px-5 py-2.5 rounded-xl hover:opacity-90 disabled:opacity-50 transition"
               >
                 {uploading ? (
@@ -432,7 +434,23 @@ function LibraryPageInner() {
             />
             <span className="flex items-center gap-1.5">
               <Globe className="w-4 h-4 text-primary-light" />
-              مشاركة مع مكتبة المجتمع (يراها بقية الطلاب)
+              مشاركة مع مجتمع سادس (يراها بقية الطلاب بعد موافقة الإدارة)
+            </span>
+          </label>
+
+          {/* Terms acceptance — required to contribute */}
+          <label className="mt-2 flex items-center gap-2 text-sm cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="w-4 h-4 accent-primary"
+            />
+            <span>
+              أوافق على{' '}
+              <Link href="/terms" className="text-primary hover:underline">
+                شروط الاستخدام
+              </Link>
             </span>
           </label>
 

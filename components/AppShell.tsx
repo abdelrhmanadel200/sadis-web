@@ -21,6 +21,11 @@ import {
   BookMarked,
   Users as UsersIcon,
   Crown,
+  MapPin,
+  Send,
+  CalendarDays,
+  Newspaper,
+  ListVideo,
 } from 'lucide-react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -147,9 +152,14 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
           <NavLink href="/voice" active={pathname.startsWith('/voice')} icon={<Mic className="w-5 h-5" />} label="الصوت الحي" />
           <NavLink href="/subjects" active={pathname.startsWith('/subjects')} icon={<BookOpen className="w-5 h-5" />} label="المواد" />
           <NavLink href="/lectures" active={pathname.startsWith('/lectures')} icon={<PlayCircle className="w-5 h-5" />} label="المحاضرات" />
+          <NavLink href="/playlists" active={pathname.startsWith('/playlists')} icon={<ListVideo className="w-5 h-5" />} label="قوائم التشغيل" />
           <NavLink href="/books" active={pathname.startsWith('/books')} icon={<BookMarked className="w-5 h-5" />} label="الكتب" />
           <NavLink href="/library" active={pathname === '/library'} icon={<Library className="w-5 h-5" />} label="مكتبتي" />
-          <NavLink href="/library/browse" active={pathname.startsWith('/library/browse')} icon={<UsersIcon className="w-5 h-5" />} label="مكتبة المجتمع" />
+          <NavLink href="/library/browse" active={pathname.startsWith('/library/browse')} icon={<UsersIcon className="w-5 h-5" />} label="مجتمع سادس" />
+          <NavLink href="/institutes" active={pathname.startsWith('/institutes')} icon={<MapPin className="w-5 h-5" />} label="المعاهد" />
+          <NavLink href="/telegram" active={pathname.startsWith('/telegram')} icon={<Send className="w-5 h-5" />} label="قنوات تليجرام" />
+          <NavLink href="/calendar" active={pathname.startsWith('/calendar')} icon={<CalendarDays className="w-5 h-5" />} label="تقويم السادس" />
+          <NavLink href="/news" active={pathname.startsWith('/news')} icon={<Newspaper className="w-5 h-5" />} label="أخبار السادس" />
           <a
             href="https://forum.6thultra.com/session/sso"
             rel="noopener noreferrer"

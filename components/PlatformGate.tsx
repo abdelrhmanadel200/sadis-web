@@ -93,12 +93,20 @@ export default function PlatformGate({
           رمز التفعيل الذي تحصل عليه من الموزّع المعتمد لفتح المكتبة والمحاضرات
           والمنتدى وباقي الأقسام لمدة سنة كاملة.
         </p>
-        <Link
-          href="/account/subscription"
-          className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold bg-primary text-primary-foreground hover:opacity-90 transition"
-        >
-          تفعيل الحساب / إدخال الرمز
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link
+            href="/account/subscription"
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold bg-primary text-primary-foreground hover:opacity-90 transition"
+          >
+            تفعيل الحساب / إدخال الرمز
+          </Link>
+          <Link
+            href="/activation-request"
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold border border-primary/50 text-primary hover:bg-primary/10 transition"
+          >
+            إرسال كود تفعيل لعنواني
+          </Link>
+        </div>
       </div>
     </div>
   );
