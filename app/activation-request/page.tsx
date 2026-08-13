@@ -37,9 +37,12 @@ export default function ActivationRequestPage() {
   const [area, setArea] = useState('');
   const [phone, setPhone] = useState('');
   const [planId, setPlanId] = useState('lifetime_access');
+  const [refCode, setRefCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  // Non-blocking notice when the optional marketer code was rejected.
+  const [refNotice, setRefNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
@@ -85,6 +88,26 @@ export default function ActivationRequestPage() {
         status: 'pending',
       });
       if (insErr) throw insErr;
+      // Best-effort referral attribution (affiliate system) — the RPC enforces
+      // all rules (first-wins, no self-referral, no existing subscribers) and
+      // returns a boolean verdict. A rejected code must not block the request,
+      // but the student deserves to know it didn't count.
+      const code = refCode.trim();
+      if (code) {
+        try {
+          const { data: accepted, error: refErr } = await supabase.rpc('record_referral', {
+            p_code: code,
+            p_source: 'code',
+          });
+          if (refErr || accepted !== true) {
+            setRefNotice(
+              'ملاحظة: كود المسوّق لم يُقبل (غير صالح أو سبق ربط حسابك) — تم إرسال طلبك بشكل طبيعي بدونه.',
+            );
+          }
+        } catch {
+          setRefNotice('ملاحظة: تعذّر التحقق من كود المسوّق — تم إرسال طلبك بشكل طبيعي.');
+        }
+      }
       setDone(true);
     } catch {
       setError('تعذّر إرسال الطلب، حاول مرة ثانية.');
@@ -113,6 +136,11 @@ export default function ActivationRequestPage() {
             <p className="text-muted leading-relaxed mb-6">
               سيتواصل معك فريق التفعيل على رقمك لتسليمك رمز التفعيل. شكراً لك.
             </p>
+            {refNotice && (
+              <p className="text-sm text-amber-500 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-2.5 mb-6">
+                {refNotice}
+              </p>
+            )}
             <Link
               href="/account/subscription"
               className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold bg-primary text-primary-foreground hover:opacity-90 transition"
@@ -188,6 +216,19 @@ export default function ActivationRequestPage() {
                     <option key={p.id} value={p.id}>{p.label}</option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1.5">
+                  كود المسوّق (اختياري)
+                </label>
+                <input
+                  dir="ltr"
+                  value={refCode}
+                  onChange={(e) => setRefCode(e.target.value)}
+                  placeholder="إذا رشّحك أحد المسوّقين، اكتب كوده هنا"
+                  className="w-full rounded-xl border border-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary font-mono"
+                />
               </div>
 
               {error && (

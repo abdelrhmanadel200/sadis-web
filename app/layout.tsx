@@ -4,6 +4,7 @@ import './globals.css';
 import 'katex/dist/katex.min.css';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { AuthProvider } from '@/components/providers/AuthProvider';
+import ReferralCapture from '@/components/ReferralCapture';
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
@@ -61,6 +62,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
+            <ReferralCapture />
             <div className="bg-shadows" aria-hidden />
             <div className="relative z-10">{children}</div>
           </AuthProvider>

@@ -12,8 +12,13 @@
 // Coupons without `plan_id` fall through unchanged (legacy money-discount
 // behaviour handled by the older `redeem_coupon` RPC).
 //
-// Concurrency: we increment `used_count` atomically and reject the request
-// if the coupon is already exhausted or expired.
+// Concurrency & abuse guards:
+//   * one redemption per user per coupon (checked against subscriptions
+//     metadata->coupon_code) — a shared multi-use promo code can't be farmed
+//     by the same account for repeat subscriptions/affiliate commissions;
+//   * the `used_count` bump is a compare-and-swap executed BEFORE the
+//     subscription insert, so N parallel requests can't oversubscribe a
+//     max_uses-limited coupon.
 
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -125,6 +130,17 @@ export async function POST(req: NextRequest) {
     return bad('هذا الرمز ليس رمز اشتراك');
   }
 
+  // One redemption per user per coupon: the same account can't redeem a
+  // shared multi-use code twice (subscription + commission farming).
+  const { count: alreadyUsed } = await admin
+    .from('subscriptions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('metadata->>coupon_code', coupon.code);
+  if ((alreadyUsed ?? 0) > 0) {
+    return bad('لقد استخدمت هذا الرمز من قبل');
+  }
+
   const { data: planRow } = await admin
     .from('subscription_plans')
     .select('id, name_ar, duration_days, price_iqd, price_usd')
@@ -132,6 +148,19 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   const plan = planRow as SubscriptionPlan | null;
   if (!plan) return bad('الباقة المرتبطة بالرمز غير متاحة');
+
+  // Claim one use FIRST via compare-and-swap: the update only matches while
+  // used_count still holds the value we read, so parallel requests can't all
+  // pass the max_uses check. Losing the race → ask the user to retry.
+  const { data: claimed } = await admin
+    .from('coupons')
+    .update({ used_count: (coupon.used_count ?? 0) + 1 })
+    .eq('code', coupon.code)
+    .eq('used_count', coupon.used_count ?? 0)
+    .select('code');
+  if (!claimed || claimed.length === 0) {
+    return bad('الرمز قيد الاستخدام حالياً — حاول مرة أخرى', 409);
+  }
 
   // Effective duration: coupon may override the plan's duration (e.g. a
   // promo code that gives 60 days of chat_monthly).
@@ -141,7 +170,7 @@ export async function POST(req: NextRequest) {
   const startsAt = new Date();
   const expiresAt = new Date(startsAt.getTime() + durationDays * 86_400_000);
 
-  // Insert (or refresh) the user's subscription row for this plan.
+  // Insert the user's subscription row for this plan.
   const { error: subErr } = await admin
     .from('subscriptions')
     .insert({
@@ -158,16 +187,14 @@ export async function POST(req: NextRequest) {
     });
   if (subErr) {
     console.error('insert subscription failed', subErr);
+    // Compensate: release the use we claimed so the coupon isn't burned.
+    await admin
+      .from('coupons')
+      .update({ used_count: coupon.used_count ?? 0 })
+      .eq('code', coupon.code)
+      .eq('used_count', (coupon.used_count ?? 0) + 1);
     return bad('تعذّر تفعيل الاشتراك، حاول مرة أخرى', 500);
   }
-
-  // Bump the coupon usage counter. Best-effort — if the increment fails we
-  // still want the user activated; we'll catch double-spend with a unique
-  // index later if needed.
-  await admin
-    .from('coupons')
-    .update({ used_count: (coupon.used_count ?? 0) + 1 })
-    .eq('code', coupon.code);
 
   return ok({
     plan_id: plan.id,
