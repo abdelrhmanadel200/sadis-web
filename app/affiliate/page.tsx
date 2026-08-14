@@ -38,6 +38,29 @@ interface Commission {
   created_at: string;
 }
 
+interface Payout {
+  id: string;
+  amount_iqd: number;
+  method: string | null;
+  account_number: string | null;
+  status: string;
+  admin_note: string | null;
+  requested_at: string;
+  settled_at: string | null;
+}
+
+const PAYOUT_STATUS: Record<string, { label: string; classes: string }> = {
+  requested: { label: 'قيد المعالجة', classes: 'bg-amber-500/15 text-amber-500 border-amber-500/30' },
+  paid: { label: 'تم الصرف', classes: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30' },
+  rejected: { label: 'مرفوض', classes: 'bg-destructive/15 text-destructive border-destructive/30' },
+};
+
+const PAYOUT_METHODS = [
+  { id: 'zaincash', label: 'زين كاش' },
+  { id: 'asiacell', label: 'آسيا سيل' },
+  { id: 'cash', label: 'استلام نقدي' },
+];
+
 const COMMISSION_STATUS: Record<string, { label: string; classes: string }> = {
   pending: { label: 'قيد المراجعة', classes: 'bg-amber-500/15 text-amber-500 border-amber-500/30' },
   approved: { label: 'معتمدة', classes: 'bg-primary/15 text-primary border-primary/30' },
@@ -58,6 +81,15 @@ export default function AffiliatePage() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+  // طلب سحب الأرباح
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [showPayoutForm, setShowPayoutForm] = useState(false);
+  const [poMethod, setPoMethod] = useState('zaincash');
+  const [poAccount, setPoAccount] = useState('');
+  const [poName, setPoName] = useState('');
+  const [poNote, setPoNote] = useState('');
+  const [poBusy, setPoBusy] = useState(false);
+  const [poError, setPoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
@@ -73,7 +105,7 @@ export default function AffiliatePage() {
       .maybeSingle();
     setAffiliate((aff as Affiliate) ?? null);
     if (aff) {
-      const [{ data: refs }, { data: comms }] = await Promise.all([
+      const [{ data: refs }, { data: comms }, { data: pos }] = await Promise.all([
         supabase
           .from('referrals')
           .select('referred_user_id, status, created_at')
@@ -84,9 +116,15 @@ export default function AffiliatePage() {
           .select('id, plan_id, amount_iqd, pct, status, created_at')
           .eq('affiliate_user_id', user.id)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('affiliate_payouts')
+          .select('id, amount_iqd, method, account_number, status, admin_note, requested_at, settled_at')
+          .eq('affiliate_user_id', user.id)
+          .order('created_at', { ascending: false }),
       ]);
       setReferrals((refs ?? []) as Referral[]);
       setCommissions((comms ?? []) as Commission[]);
+      setPayouts((pos ?? []) as Payout[]);
     }
     setLoading(false);
   }, [user]);
@@ -109,6 +147,42 @@ export default function AffiliatePage() {
       setJoining(false);
     }
   };
+
+  // طلب صرف المستحقات. الرصيد يُحتسب في قاعدة البيانات (RPC) وليس هنا.
+  const requestPayout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPoError(null);
+    if (!poAccount.trim() && poMethod !== 'cash') {
+      setPoError('أدخل رقم المحفظة/الهاتف لاستلام المبلغ.');
+      return;
+    }
+    setPoBusy(true);
+    try {
+      const { error: rpcErr } = await supabase.rpc('request_payout', {
+        p_method: poMethod,
+        p_account: poAccount.trim() || null,
+        p_full_name: poName.trim() || null,
+        p_note: poNote.trim() || null,
+      });
+      if (rpcErr) {
+        setPoError(
+          rpcErr.message?.includes('no balance')
+            ? 'لا يوجد رصيد مستحق للسحب حالياً.'
+            : 'تعذّر إرسال الطلب، حاول مرة ثانية.',
+        );
+        return;
+      }
+      setShowPayoutForm(false);
+      setPoAccount('');
+      setPoName('');
+      setPoNote('');
+      await load();
+    } finally {
+      setPoBusy(false);
+    }
+  };
+
+  const pendingPayout = payouts.find((p) => p.status === 'requested') ?? null;
 
   const refLink = affiliate
     ? `${typeof window !== 'undefined' ? window.location.origin : 'https://www.6thultra.com'}/register?ref=${affiliate.code}`
@@ -241,6 +315,127 @@ export default function AffiliatePage() {
                 value={`${IQD.format(total('pending') + total('approved'))} د.ع`}
               />
               <Stat icon={Wallet} label="عمولات مدفوعة" value={`${IQD.format(total('paid'))} د.ع`} />
+            </div>
+
+            {/* سحب الأرباح */}
+            <div className="card border border-dark-border rounded-2xl p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div>
+                  <h2 className="font-bold text-lg">سحب الأرباح</h2>
+                  <p className="text-sm text-muted">
+                    الرصيد المتاح للسحب:{' '}
+                    <b className="text-foreground">
+                      {IQD.format(total('pending') + total('approved'))} د.ع
+                    </b>
+                  </p>
+                </div>
+                {!pendingPayout && total('pending') + total('approved') > 0 && (
+                  <button
+                    onClick={() => setShowPayoutForm((v) => !v)}
+                    className="rounded-xl bg-primary text-primary-foreground font-bold px-5 py-2.5 text-sm hover:opacity-90"
+                  >
+                    {showPayoutForm ? 'إلغاء' : 'اطلب أرباحي'}
+                  </button>
+                )}
+              </div>
+
+              {pendingPayout && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+                  لديك طلب سحب قيد المعالجة بمبلغ{' '}
+                  <b>{IQD.format(Number(pendingPayout.amount_iqd))} د.ع</b> — سيتواصل معك فريق
+                  المنصة قريباً.
+                </div>
+              )}
+
+              {!pendingPayout && total('pending') + total('approved') <= 0 && (
+                <p className="text-sm text-muted py-2">
+                  لا يوجد رصيد للسحب حالياً — كل عمولة جديدة تُضاف هنا تلقائياً.
+                </p>
+              )}
+
+              {showPayoutForm && !pendingPayout && (
+                <form onSubmit={requestPayout} className="mt-4 space-y-3 max-w-lg">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold mb-1.5">طريقة الاستلام</label>
+                      <select
+                        value={poMethod}
+                        onChange={(e) => setPoMethod(e.target.value)}
+                        className="w-full rounded-xl border border-dark-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary"
+                      >
+                        {PAYOUT_METHODS.map((m) => (
+                          <option key={m.id} value={m.id}>{m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-1.5">
+                        {poMethod === 'cash' ? 'رقم هاتفك' : 'رقم المحفظة / الهاتف'}
+                      </label>
+                      <input
+                        dir="ltr"
+                        value={poAccount}
+                        onChange={(e) => setPoAccount(e.target.value)}
+                        placeholder="07XXXXXXXXX"
+                        className="w-full rounded-xl border border-dark-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1.5">الاسم الكامل</label>
+                    <input
+                      value={poName}
+                      onChange={(e) => setPoName(e.target.value)}
+                      className="w-full rounded-xl border border-dark-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1.5">ملاحظة (اختياري)</label>
+                    <input
+                      value={poNote}
+                      onChange={(e) => setPoNote(e.target.value)}
+                      className="w-full rounded-xl border border-dark-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  {poError && (
+                    <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+                      {poError}
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={poBusy}
+                    className="rounded-xl bg-primary text-primary-foreground font-bold px-5 py-2.5 text-sm hover:opacity-90 disabled:opacity-50"
+                  >
+                    {poBusy ? 'جاري الإرسال...' : 'إرسال الطلب'}
+                  </button>
+                </form>
+              )}
+
+              {payouts.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-sm font-semibold text-muted">سجل الطلبات</h3>
+                  {payouts.map((p) => {
+                    const meta = PAYOUT_STATUS[p.status] ?? PAYOUT_STATUS.requested;
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-dark-border px-4 py-2.5 text-sm"
+                      >
+                        <span className="font-semibold">
+                          {IQD.format(Number(p.amount_iqd))} د.ع
+                        </span>
+                        <span className="text-xs text-muted">
+                          {new Date(p.requested_at).toLocaleDateString('ar-IQ')}
+                        </span>
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full border ${meta.classes}`}>
+                          {meta.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Commissions list */}

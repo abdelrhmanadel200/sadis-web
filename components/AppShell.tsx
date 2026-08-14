@@ -152,8 +152,9 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
           <NavLink href="/chat" active={pathname === '/chat'} icon={<MessageSquare className="w-5 h-5" />} label="الدردشة" />
           <NavLink href="/voice" active={pathname.startsWith('/voice')} icon={<Mic className="w-5 h-5" />} label="الصوت الحي" />
           <NavLink href="/subjects" active={pathname.startsWith('/subjects')} icon={<BookOpen className="w-5 h-5" />} label="المواد" />
-          <NavLink href="/lectures" active={pathname.startsWith('/lectures')} icon={<PlayCircle className="w-5 h-5" />} label="المحاضرات" />
-          <NavLink href="/playlists" active={pathname.startsWith('/playlists')} icon={<ListVideo className="w-5 h-5" />} label="قوائم التشغيل" />
+          {/* قسم المحاضرات فيه فرعان (محاضرات يوتيوب / قوائم تشغيل) — التنقل
+              بينهما عبر تبويبات داخل الصفحة، فلا نكرّرهما في القائمة. */}
+          <NavLink href="/lectures" active={pathname.startsWith('/lectures') || pathname.startsWith('/playlists')} icon={<PlayCircle className="w-5 h-5" />} label="المحاضرات" />
           <NavLink href="/books" active={pathname.startsWith('/books')} icon={<BookMarked className="w-5 h-5" />} label="الكتب" />
           <NavLink href="/library" active={pathname === '/library'} icon={<Library className="w-5 h-5" />} label="مكتبتي" />
           <NavLink href="/library/browse" active={pathname.startsWith('/library/browse')} icon={<UsersIcon className="w-5 h-5" />} label="مجتمع سادس" />
