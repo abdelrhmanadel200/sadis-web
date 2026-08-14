@@ -27,8 +27,17 @@ interface Book {
   external_url: string;
   cover_url: string | null;
   format: string | null;
+  category: string | null;
   sort_order: number;
 }
+
+// فروع قسم الكتب (تطابق admin books page + عمود books.category)
+const CATEGORIES = [
+  { id: 'curriculum', label: 'كتب منهجية' },
+  { id: 'booklet', label: 'ملازم' },
+  { id: 'summary', label: 'ملخصات' },
+  { id: 'exams', label: 'أسئلة وزارية' },
+];
 
 function BooksPageInner() {
   const { user } = useAuth();
@@ -37,6 +46,7 @@ function BooksPageInner() {
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
+  const [categoryTab, setCategoryTab] = useState<string>('all');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -76,6 +86,8 @@ function BooksPageInner() {
   );
 
   const visible = books.filter((b) => {
+    // الكتب القديمة بدون فرع تُعامل كـ"كتب منهجية".
+    if (categoryTab !== 'all' && (b.category ?? 'curriculum') !== categoryTab) return false;
     if (subjectFilter !== 'all' && b.subject_id !== subjectFilter) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -111,6 +123,30 @@ function BooksPageInner() {
             <ArrowRight className="w-4 h-4 rotate-180" />
           </Link>
         </header>
+
+        {/* تبويبات الفروع */}
+        <div className="flex flex-wrap gap-2 mb-5 border-b border-dark-border pb-3">
+          {[{ id: 'all', label: 'الكل' }, ...CATEGORIES].map((c) => {
+            const count =
+              c.id === 'all'
+                ? books.length
+                : books.filter((b) => (b.category ?? 'curriculum') === c.id).length;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setCategoryTab(c.id)}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
+                  categoryTab === c.id
+                    ? 'bg-primary text-white'
+                    : 'bg-card/40 text-muted hover:text-foreground'
+                }`}
+              >
+                {c.label}
+                <span className="text-xs opacity-70"> ({count})</span>
+              </button>
+            );
+          })}
+        </div>
 
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <div className="relative flex-1 min-w-[220px] max-w-sm">

@@ -117,7 +117,7 @@ function LecturesPageInner() {
           العودة
         </Link>
 
-        <header className="mb-8">
+        <header className="mb-6">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">
             المحاضرات المرئية
           </h1>
@@ -125,6 +125,19 @@ function LecturesPageInner() {
             فيديوهات شرح من أساتذة معتمدين — تتشغّل كلها داخل الموقع.
           </p>
         </header>
+
+        {/* فرعا القسم: محاضرات مفردة أو سلاسل (قوائم تشغيل) */}
+        <div className="flex flex-wrap gap-2 mb-5 border-b border-dark-border pb-3">
+          <span className="px-4 py-2 rounded-xl text-sm font-bold bg-primary text-white">
+            محاضرات يوتيوب
+          </span>
+          <Link
+            href="/playlists"
+            className="px-4 py-2 rounded-xl text-sm font-bold bg-card/40 text-muted hover:text-foreground transition"
+          >
+            قوائم التشغيل
+          </Link>
+        </div>
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
