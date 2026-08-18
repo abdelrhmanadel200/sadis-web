@@ -21,6 +21,7 @@ import {
   BookMarked,
   Users as UsersIcon,
   Crown,
+  ClipboardList,
   MapPin,
   Send,
   CalendarDays,
@@ -150,7 +151,17 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
 
         <nav className="px-2 pb-2 space-y-0.5">
           <NavLink href="/chat" active={pathname === '/chat'} icon={<MessageSquare className="w-5 h-5" />} label="الدردشة" />
-          <NavLink href="/voice" active={pathname.startsWith('/voice')} icon={<Mic className="w-5 h-5" />} label="الصوت الحي" />
+          {/* قسم قيد التطوير — يفتح صفحة تعريفية بشارة "قريباً". */}
+          <Link
+            href="/exam"
+            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              pathname.startsWith('/exam') ? 'bg-primary/15 text-primary-light' : 'hover-surface text-current'
+            }`}
+          >
+            <ClipboardList className="w-5 h-5" />
+            <span>امتحان إلكتروني</span>
+            <span className="ms-auto text-[10px] font-bold bg-primary/15 text-primary px-2 py-0.5 rounded-full">قريباً</span>
+          </Link>
           <NavLink href="/subjects" active={pathname.startsWith('/subjects')} icon={<BookOpen className="w-5 h-5" />} label="المواد" />
           {/* قسم المحاضرات فيه فرعان (محاضرات يوتيوب / قوائم تشغيل) — التنقل
               بينهما عبر تبويبات داخل الصفحة، فلا نكرّرهما في القائمة. */}

@@ -35,7 +35,6 @@ const footerLinks = {
       { href: "/privacy", label: "سياسة الخصوصية" },
       { href: "/terms", label: "شروط الخدمة" },
       { href: "/refund", label: "سياسة الاسترداد" },
-      { href: "/commercial-register", label: "السجل التجاري" },
     ],
   },
 }

@@ -90,6 +90,7 @@ export default function AffiliatePage() {
   const [poNote, setPoNote] = useState('');
   const [poBusy, setPoBusy] = useState(false);
   const [poError, setPoError] = useState<string | null>(null);
+  const [minPayout, setMinPayout] = useState<number>(0);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
@@ -105,7 +106,7 @@ export default function AffiliatePage() {
       .maybeSingle();
     setAffiliate((aff as Affiliate) ?? null);
     if (aff) {
-      const [{ data: refs }, { data: comms }, { data: pos }] = await Promise.all([
+      const [{ data: refs }, { data: comms }, { data: pos }, { data: setting }] = await Promise.all([
         supabase
           .from('referrals')
           .select('referred_user_id, status, created_at')
@@ -121,10 +122,15 @@ export default function AffiliatePage() {
           .select('id, amount_iqd, method, account_number, status, admin_note, requested_at, settled_at')
           .eq('affiliate_user_id', user.id)
           .order('created_at', { ascending: false }),
+        supabase.from('app_settings').select('value').eq('key', 'min_payout_iqd').maybeSingle(),
       ]);
       setReferrals((refs ?? []) as Referral[]);
       setCommissions((comms ?? []) as Commission[]);
       setPayouts((pos ?? []) as Payout[]);
+      // حد المسوّق الخاص يتقدّم على الحد العام.
+      const globalMin = Number((setting as { value?: string } | null)?.value ?? 0) || 0;
+      const own = (aff as { min_payout_iqd?: number | null }).min_payout_iqd;
+      setMinPayout(own === null || own === undefined ? globalMin : Number(own) || 0);
     }
     setLoading(false);
   }, [user]);
@@ -165,10 +171,13 @@ export default function AffiliatePage() {
         p_note: poNote.trim() || null,
       });
       if (rpcErr) {
+        const msg = rpcErr.message ?? '';
         setPoError(
-          rpcErr.message?.includes('no balance')
+          msg.includes('no balance')
             ? 'لا يوجد رصيد مستحق للسحب حالياً.'
-            : 'تعذّر إرسال الطلب، حاول مرة ثانية.',
+            : msg.includes('below minimum')
+              ? `الحد الأدنى للسحب هو ${IQD.format(minPayout)} د.ع — واصل التسويق حتى تبلغه.`
+              : 'تعذّر إرسال الطلب، حاول مرة ثانية.',
         );
         return;
       }
@@ -327,9 +336,15 @@ export default function AffiliatePage() {
                     <b className="text-foreground">
                       {IQD.format(total('pending') + total('approved'))} د.ع
                     </b>
+                    {minPayout > 0 && (
+                      <>
+                        {' '}— الحد الأدنى للسحب{' '}
+                        <b className="text-foreground">{IQD.format(minPayout)} د.ع</b>
+                      </>
+                    )}
                   </p>
                 </div>
-                {!pendingPayout && total('pending') + total('approved') > 0 && (
+                {!pendingPayout && total('pending') + total('approved') >= Math.max(minPayout, 1) && (
                   <button
                     onClick={() => setShowPayoutForm((v) => !v)}
                     className="rounded-xl bg-primary text-primary-foreground font-bold px-5 py-2.5 text-sm hover:opacity-90"
@@ -352,6 +367,16 @@ export default function AffiliatePage() {
                   لا يوجد رصيد للسحب حالياً — كل عمولة جديدة تُضاف هنا تلقائياً.
                 </p>
               )}
+
+              {!pendingPayout &&
+                total('pending') + total('approved') > 0 &&
+                total('pending') + total('approved') < minPayout && (
+                  <p className="text-sm text-amber-500 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5">
+                    تحتاج{' '}
+                    <b>{IQD.format(minPayout - (total('pending') + total('approved')))} د.ع</b> إضافية
+                    لتتمكّن من طلب السحب (الحد الأدنى {IQD.format(minPayout)} د.ع).
+                  </p>
+                )}
 
               {showPayoutForm && !pendingPayout && (
                 <form onSubmit={requestPayout} className="mt-4 space-y-3 max-w-lg">
