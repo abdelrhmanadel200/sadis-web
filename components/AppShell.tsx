@@ -22,6 +22,7 @@ import {
   Users as UsersIcon,
   Crown,
   ClipboardList,
+  NotebookPen,
   MapPin,
   Send,
   CalendarDays,
@@ -168,6 +169,7 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
           <NavLink href="/lectures" active={pathname.startsWith('/lectures') || pathname.startsWith('/playlists')} icon={<PlayCircle className="w-5 h-5" />} label="المحاضرات" />
           <NavLink href="/books" active={pathname.startsWith('/books')} icon={<BookMarked className="w-5 h-5" />} label="الكتب" />
           <NavLink href="/library" active={pathname === '/library'} icon={<Library className="w-5 h-5" />} label="مكتبتي" />
+          <NavLink href="/drafts" active={pathname.startsWith('/drafts')} icon={<NotebookPen className="w-5 h-5" />} label="المسودة" />
           <NavLink href="/library/browse" active={pathname.startsWith('/library/browse')} icon={<UsersIcon className="w-5 h-5" />} label="مجتمع سادس" />
           <NavLink href="/institutes" active={pathname.startsWith('/institutes')} icon={<MapPin className="w-5 h-5" />} label="المعاهد" />
           <NavLink href="/telegram" active={pathname.startsWith('/telegram')} icon={<Send className="w-5 h-5" />} label="قنوات تليجرام" />
