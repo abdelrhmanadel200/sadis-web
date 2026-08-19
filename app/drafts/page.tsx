@@ -13,6 +13,10 @@ import {
   Save,
   X,
   Undo2,
+  ZoomIn,
+  ZoomOut,
+  Hand,
+  Maximize2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -210,6 +214,11 @@ function DraftEditor({
   const [uploading, setUploading] = useState(false);
   // إعادة الرسم أثناء السحب (الخط الجاري محفوظ في ref لتفادي إعادة إنشاء المصفوفة).
   const [, forceRedraw] = useState(0);
+  // التكبير والتحريك: الطالب يحتاج تقريب الصورة ليؤشّر بدقة.
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [mode, setMode] = useState<'draw' | 'pan'>('draw');
+  const panStart = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const current = useRef<Stroke | null>(null);
@@ -247,9 +256,13 @@ function DraftEditor({
   };
 
   // إحداثيات نسبية حتى تظهر الرسوم صحيحة على أي حجم شاشة.
+  // إحداثيات نسبية للصورة نفسها بعد التكبير/التحريك، حتى تبقى الخطوط
+  // مثبّتة على مكانها الصحيح مهما غيّر الطالب التقريب.
   const rel = (e: React.PointerEvent) => {
     const r = wrapRef.current!.getBoundingClientRect();
-    return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+    const x = (e.clientX - r.left - pan.x) / (r.width * zoom);
+    const y = (e.clientY - r.top - pan.y) / (r.height * zoom);
+    return { x, y };
   };
 
   return (
@@ -337,20 +350,86 @@ function DraftEditor({
                 </button>
               </div>
 
+              {/* أدوات التقريب — يحتاجها الطالب ليؤشّر بدقة على التفاصيل */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex rounded-lg border border-dark-border overflow-hidden">
+                  <button
+                    onClick={() => setMode('draw')}
+                    className={`px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1 ${
+                      mode === 'draw' ? 'bg-primary text-white' : 'text-muted'
+                    }`}
+                  >
+                    <Pencil className="w-3.5 h-3.5" /> قلم
+                  </button>
+                  <button
+                    onClick={() => setMode('pan')}
+                    className={`px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1 ${
+                      mode === 'pan' ? 'bg-primary text-white' : 'text-muted'
+                    }`}
+                  >
+                    <Hand className="w-3.5 h-3.5" /> تحريك
+                  </button>
+                </div>
+                <button
+                  onClick={() => setZoom((z) => Math.min(5, +(z + 0.5).toFixed(2)))}
+                  className="p-1.5 rounded-lg border border-dark-border"
+                  title="تكبير"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() =>
+                    setZoom((z) => {
+                      const next = Math.max(1, +(z - 0.5).toFixed(2));
+                      if (next === 1) setPan({ x: 0, y: 0 });
+                      return next;
+                    })
+                  }
+                  className="p-1.5 rounded-lg border border-dark-border"
+                  title="تصغير"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+                  className="p-1.5 rounded-lg border border-dark-border"
+                  title="إعادة الضبط"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+                <span className="text-xs text-muted">{Math.round(zoom * 100)}%</span>
+              </div>
+
               <div
                 ref={wrapRef}
                 className="relative select-none touch-none rounded-xl overflow-hidden border border-dark-border"
+                onWheel={(e) => {
+                  if (!e.ctrlKey) return; // Ctrl+عجلة = تقريب (سلوك مألوف)
+                  e.preventDefault();
+                  setZoom((z) => Math.min(5, Math.max(1, +(z - e.deltaY / 500).toFixed(2))));
+                }}
                 onPointerDown={(e) => {
                   (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                  if (mode === 'pan') {
+                    panStart.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+                    return;
+                  }
                   current.current = { color, width: 3, points: [rel(e)] };
                   setDrawing(true);
                 }}
                 onPointerMove={(e) => {
+                  if (mode === 'pan') {
+                    if (!panStart.current) return;
+                    const st = panStart.current;
+                    setPan({ x: st.px + (e.clientX - st.x), y: st.py + (e.clientY - st.y) });
+                    return;
+                  }
                   if (!drawing || !current.current) return;
                   current.current.points.push(rel(e));
                   forceRedraw((n) => n + 1);
                 }}
                 onPointerUp={() => {
+                  if (mode === 'pan') { panStart.current = null; return; }
                   if (current.current && current.current.points.length > 1) {
                     const done = current.current;
                     setStrokes((s) => [...s, done]);
@@ -359,6 +438,13 @@ function DraftEditor({
                   setDrawing(false);
                 }}
               >
+                <div
+                  className="relative"
+                  style={{
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    transformOrigin: 'top right',
+                  }}
+                >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imgUrl} alt="" className="w-full block pointer-events-none" />
                 <svg
@@ -379,9 +465,11 @@ function DraftEditor({
                     />
                   ))}
                 </svg>
+                </div>
               </div>
               <p className="text-xs text-muted">
-                أشّر بإصبعك أو الماوس فوق الصورة — تقدر تتراجع في أي وقت.
+                أشّر بإصبعك أو الماوس فوق الصورة. للتقريب استخدم زر التكبير، ثم
+                «تحريك» لتنقل الصورة — تقدر تتراجع في أي وقت.
               </p>
             </div>
           )}
