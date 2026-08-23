@@ -22,8 +22,8 @@ const MONTHS = [
 const WEEKDAYS = ['سبت', 'أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة'];
 
 const KIND_STYLE: Record<string, string> = {
-  official: 'bg-red-500/25 text-red-400 border-red-500/50',
-  unofficial: 'bg-amber-500/25 text-amber-400 border-amber-500/50',
+  official: 'bg-red-600 text-white border-red-500 font-bold',
+  unofficial: 'bg-yellow-400 text-black border-yellow-300 font-bold',
 };
 
 function ymd(y: number, m: number, d: number) {
@@ -112,10 +112,10 @@ export default function CalendarPage() {
           </div>
           <div className="flex items-center gap-4 text-sm">
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded bg-red-500/70" /> عطلة رسمية
+              <span className="w-3.5 h-3.5 rounded bg-red-600" /> عطلة رسمية
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded bg-amber-500/70" /> عطلة غير معلنة
+              <span className="w-3.5 h-3.5 rounded bg-yellow-400" /> عطلة غير معلنة
             </span>
           </div>
         </div>
@@ -187,10 +187,10 @@ function MonthCard({
 
   return (
     <div className="card border border-dark-border rounded-2xl p-4">
-      <h3 className="font-bold text-center mb-3">{name}</h3>
+      <h3 className="font-bold text-center mb-3 text-primary-light">{name}</h3>
       <div className="grid grid-cols-7 gap-1 text-center">
         {WEEKDAYS.map((d) => (
-          <div key={d} className="text-[10px] text-muted pb-1">
+          <div key={d} className="text-[10px] font-bold text-gray-400 pb-1">
             {d}
           </div>
         ))}
@@ -210,7 +210,7 @@ function MonthCard({
                   ? style
                   : isToday(day)
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-muted'
+                    : 'border-transparent text-white'
               }`}
             >
               {day}
