@@ -140,9 +140,9 @@ export default function SchedulePage() {
             <table className="w-full border-separate border-spacing-1 min-w-[720px]">
               <thead>
                 <tr>
-                  <th className="w-20 text-xs text-muted font-semibold">الحصة</th>
+                  <th className="w-16 text-xs text-muted font-semibold pb-2">الحصة</th>
                   {DAYS.map((d) => (
-                    <th key={d} className="text-sm font-bold pb-1">
+                    <th key={d} className="text-sm font-bold pb-2 text-foreground">
                       {d}
                     </th>
                   ))}
@@ -151,23 +151,27 @@ export default function SchedulePage() {
               <tbody>
                 {PERIODS.map((p) => (
                   <tr key={p}>
-                    <td className="text-center text-sm font-bold text-muted">{p}</td>
+                    <td className="text-center text-sm font-bold text-primary-light">{p}</td>
                     {DAYS.map((_, d) => {
                       const c = cells[key(d, p)] ?? { subject: '', note: '' };
                       return (
                         <td key={d} className="align-top">
-                          <div className="rounded-xl border border-dark-border bg-card/40 p-1.5 focus-within:border-primary transition">
+                          <div className={`rounded-xl border p-1.5 transition focus-within:border-primary ${
+                              c.subject.trim()
+                                ? 'border-primary/40 bg-primary/10'
+                                : 'border-dark-border bg-card/60'
+                            }`}>
                             <input
                               value={c.subject}
                               onChange={(e) => update(d, p, { subject: e.target.value })}
                               placeholder="المادة"
-                              className="w-full bg-transparent text-sm font-semibold text-center outline-none placeholder:text-muted/50"
+                              className="w-full bg-transparent text-sm font-semibold text-center text-foreground outline-none placeholder:text-muted"
                             />
                             <input
                               value={c.note}
                               onChange={(e) => update(d, p, { note: e.target.value })}
                               placeholder="ملاحظة"
-                              className="w-full bg-transparent text-[11px] text-center text-muted outline-none placeholder:text-muted/40 mt-0.5"
+                              className="w-full bg-transparent text-[11px] text-center text-muted outline-none placeholder:text-muted/70 mt-0.5"
                             />
                           </div>
                         </td>
