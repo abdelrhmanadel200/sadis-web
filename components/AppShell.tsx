@@ -173,7 +173,7 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
           <NavLink href="/library/browse" active={pathname.startsWith('/library/browse')} icon={<UsersIcon className="w-5 h-5" />} label="مجتمع سادس" />
           <NavLink href="/institutes" active={pathname.startsWith('/institutes')} icon={<MapPin className="w-5 h-5" />} label="المعاهد" />
           <NavLink href="/telegram" active={pathname.startsWith('/telegram')} icon={<Send className="w-5 h-5" />} label="قنوات تليجرام" />
-          <NavLink href="/calendar" active={pathname.startsWith('/calendar')} icon={<CalendarDays className="w-5 h-5" />} label="تقويم السادس" />
+          <NavLink href="/calendar" active={pathname.startsWith('/calendar') || pathname.startsWith('/schedule')} icon={<CalendarDays className="w-5 h-5" />} label="تقويم السادس" />
           <NavLink href="/news" active={pathname.startsWith('/news')} icon={<Newspaper className="w-5 h-5" />} label="أخبار السادس" />
           <a
             href="https://forum.6thultra.com/session/sso"
