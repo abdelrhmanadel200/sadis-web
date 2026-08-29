@@ -110,7 +110,7 @@ function BooksPageInner() {
 
         <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">الكتب والملخصات</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">مكتبة أُلترا</h1>
             <p className="text-muted">
               كتب وملخصات خارجية — اضغط على القلب لحفظها في مكتبتك.
             </p>

@@ -126,7 +126,7 @@ function LibraryBrowsePageInner() {
         <header className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-2 flex items-center gap-2">
             <LibraryIcon className="w-7 h-7 text-primary-light" />
-            مجتمع سادس
+            مكتبة سادس
           </h1>
           <p className="text-muted">
             ملفات وملاحظات شاركها أعضاء المنصة. اضغط على علامة الإبلاغ للتبليغ عن أي محتوى ينتهك حقوق النشر.

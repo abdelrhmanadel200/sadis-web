@@ -167,10 +167,9 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
           {/* قسم المحاضرات فيه فرعان (محاضرات يوتيوب / قوائم تشغيل) — التنقل
               بينهما عبر تبويبات داخل الصفحة، فلا نكرّرهما في القائمة. */}
           <NavLink href="/lectures" active={pathname.startsWith('/lectures') || pathname.startsWith('/playlists')} icon={<PlayCircle className="w-5 h-5" />} label="المحاضرات" />
-          <NavLink href="/books" active={pathname.startsWith('/books')} icon={<BookMarked className="w-5 h-5" />} label="الكتب" />
-          <NavLink href="/library" active={pathname === '/library'} icon={<Library className="w-5 h-5" />} label="مكتبتي" />
+          <NavLink href="/books" active={pathname.startsWith('/books')} icon={<BookMarked className="w-5 h-5" />} label="مكتبة أُلترا" />
+          <NavLink href="/library/browse" active={pathname.startsWith('/library/browse')} icon={<UsersIcon className="w-5 h-5" />} label="مكتبة سادس" />
           <NavLink href="/drafts" active={pathname.startsWith('/drafts')} icon={<NotebookPen className="w-5 h-5" />} label="المسودة" />
-          <NavLink href="/library/browse" active={pathname.startsWith('/library/browse')} icon={<UsersIcon className="w-5 h-5" />} label="مجتمع سادس" />
           <NavLink href="/institutes" active={pathname.startsWith('/institutes')} icon={<MapPin className="w-5 h-5" />} label="المعاهد" />
           <NavLink href="/telegram" active={pathname.startsWith('/telegram')} icon={<Send className="w-5 h-5" />} label="قنوات تليجرام" />
           <NavLink href="/calendar" active={pathname.startsWith('/calendar') || pathname.startsWith('/schedule')} icon={<CalendarDays className="w-5 h-5" />} label="تقويم السادس" />
@@ -183,6 +182,7 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
             <UsersIcon className="w-5 h-5" />
             <span>المنتدى</span>
           </a>
+          <NavLink href="/library" active={pathname === '/library'} icon={<Library className="w-5 h-5" />} label="مكتبتي" />
           <NavLink href="/store" active={pathname.startsWith('/store')} icon={<ShoppingBag className="w-5 h-5" />} label="المتجر" />
           <NavLink href="/affiliate" active={pathname.startsWith('/affiliate')} icon={<Handshake className="w-5 h-5" />} label="نظام المسوّقين" />
           <NavLink href="/account/subscription" active={pathname.startsWith('/account/subscription')} icon={<Crown className="w-5 h-5" />} label="الاشتراك" />

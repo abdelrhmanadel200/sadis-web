@@ -91,6 +91,11 @@ function LibraryPageInner() {
   const [shareToCommunity, setShareToCommunity] = useState(true);
   // Member must accept the terms of use before contributing.
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  // بيانات الملف — نفس ترتيب فورم الكتب في لوحة التحكم (بطلب العميل).
+  const [metaTitle, setMetaTitle] = useState('');
+  const [metaAuthor, setMetaAuthor] = useState('');
+  const [metaSubject, setMetaSubject] = useState('math');
+  const [metaFormat, setMetaFormat] = useState('pdf');
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
@@ -184,13 +189,17 @@ function LibraryPageInner() {
       if (upErr) throw upErr;
       const { error: insertErr } = await supabase.from('user_library_files').insert({
         user_id: user.id,
-        title: safeBase || file.name,
+        title: metaTitle.trim() || safeBase || file.name,
+        author: metaAuthor.trim() || null,
+        subject_id: metaSubject || null,
+        format: metaFormat || null,
         storage_path: path,
         file_size_bytes: file.size,
         mime_type: file.type || null,
         is_public: shareToCommunity,
       });
       if (insertErr) throw insertErr;
+      setMetaTitle(''); setMetaAuthor('');
       await load();
     } catch (e) {
       setUploadError(
@@ -207,7 +216,7 @@ function LibraryPageInner() {
   const handleAddLink = async () => {
     if (!user) return;
     setUploadError(null);
-    const title = linkTitle.trim();
+    const title = metaTitle.trim();
     const url = linkUrl.trim();
     if (!title) {
       setUploadError('أدخل عنواناً للرابط');
@@ -222,12 +231,16 @@ function LibraryPageInner() {
       const { error: insertErr } = await supabase.from('user_library_files').insert({
         user_id: user.id,
         title: title.slice(0, 120),
+        author: metaAuthor.trim() || null,
+        subject_id: metaSubject || null,
+        format: metaFormat || 'link',
         external_url: url,
         is_public: shareToCommunity,
       });
       if (insertErr) throw insertErr;
       setLinkTitle('');
       setLinkUrl('');
+      setMetaTitle(''); setMetaAuthor('');
       await load();
     } catch (e) {
       setUploadError(
@@ -336,6 +349,60 @@ function LibraryPageInner() {
             مشاركته مع مكتبة المجتمع ليستفيد منه بقية الطلاب.
           </p>
 
+          {/* بيانات الملف — نفس ترتيب فورم الكتب في لوحة التحكم */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="lg:col-span-2">
+              <label className="block text-xs font-semibold text-muted mb-1">العنوان</label>
+              <input
+                value={metaTitle}
+                onChange={(e) => setMetaTitle(e.target.value)}
+                placeholder="ملزمة الرياضيات — الفصل الأول"
+                className="input-field w-full rounded-xl px-4 py-2.5 outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1">الأستاذ / المصدر</label>
+              <input
+                value={metaAuthor}
+                onChange={(e) => setMetaAuthor(e.target.value)}
+                placeholder="أ. أحمد"
+                className="input-field w-full rounded-xl px-4 py-2.5 outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1">المادة</label>
+              <select
+                value={metaSubject}
+                onChange={(e) => setMetaSubject(e.target.value)}
+                className="input-field w-full rounded-xl px-4 py-2.5 outline-none focus:border-primary"
+              >
+                <option value="math">الرياضيات</option>
+                <option value="physics">الفيزياء</option>
+                <option value="chemistry">الكيمياء</option>
+                <option value="biology">الأحياء</option>
+                <option value="arabic">العربي</option>
+                <option value="english">الإنجليزي</option>
+                <option value="islamic">الإسلامية</option>
+                <option value="history">التاريخ</option>
+                <option value="geography">الجغرافيا</option>
+                <option value="economics">الاقتصاد</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1">نوع الملف</label>
+              <select
+                value={metaFormat}
+                onChange={(e) => setMetaFormat(e.target.value)}
+                className="input-field w-full rounded-xl px-4 py-2.5 outline-none focus:border-primary"
+              >
+                <option value="pdf">PDF</option>
+                <option value="doc">DOC</option>
+                <option value="video">فيديو</option>
+                <option value="link">رابط</option>
+              </select>
+            </div>
+          </div>
+
           {/* Mode toggle */}
           <div className="inline-flex gap-1 p-1 rounded-xl bg-card/40 border border-dark-border mb-4">
             <button
@@ -392,12 +459,6 @@ function LibraryPageInner() {
           ) : (
             <div className="space-y-3 max-w-xl">
               <input
-                value={linkTitle}
-                onChange={(e) => setLinkTitle(e.target.value)}
-                placeholder="عنوان الملف / الكتاب"
-                className="input-field w-full rounded-xl px-4 py-2.5 outline-none focus:border-primary"
-              />
-              <input
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
                 dir="ltr"
@@ -434,7 +495,7 @@ function LibraryPageInner() {
             />
             <span className="flex items-center gap-1.5">
               <Globe className="w-4 h-4 text-primary-light" />
-              مشاركة مع مجتمع سادس (يراها بقية الطلاب بعد موافقة الإدارة)
+              مشاركة مع مكتبة سادس (يراها بقية الطلاب بعد موافقة الإدارة)
             </span>
           </label>
 
