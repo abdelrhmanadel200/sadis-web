@@ -82,6 +82,11 @@ function LibraryBrowsePageInner() {
   const handleDownload = async (f: PublicFile) => {
     // Link entries open directly.
     if (f.external_url) {
+      // حماية: نرفض أي بروتوكول غير http/https (روابط قد يُدخلها أعضاء).
+      if (!/^https?:\/\//i.test(f.external_url)) {
+        alert('رابط غير مسموح');
+        return;
+      }
       window.open(f.external_url, '_blank', 'noopener,noreferrer');
       return;
     }
