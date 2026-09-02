@@ -22,10 +22,17 @@
 // (365d) is still valid, so we must not drop it. Rows that were reversed
 // (`refunded` / `cancelled`) or never paid (`pending`) are ignored.
 
-export const SECTIONS_DAYS = 365;
+// Sections window per plan — `ai_refill` deliberately grants NO sections
+// (it's an AI-month top-up for students whose sections year is already
+// running from a previous 25k/250k activation).
+export const SECTIONS_DAYS_BY_PLAN: Record<string, number> = {
+  chat_monthly: 365,
+  lifetime_access: 365,
+};
 export const AI_DAYS_BY_PLAN: Record<string, number> = {
   chat_monthly: 30,
   lifetime_access: 365,
+  ai_refill: 30,
 };
 
 export interface SubRow {
@@ -69,12 +76,15 @@ export function computeEntitlements(rows: SubRow[], now = Date.now()): Entitleme
     const anchor = r.starts_at ?? r.expires_at;
     if (!anchor) continue;
 
-    // Sections: both plans grant a full year.
-    const secExp = addDays(anchor, SECTIONS_DAYS);
-    if (secExp > now) {
-      sectionsActive = true;
-      if (sectionsExpiresAt === null || secExp > sectionsExpiresAt) {
-        sectionsExpiresAt = secExp;
+    // Sections: plan-specific window (ai_refill grants none).
+    const secDays = SECTIONS_DAYS_BY_PLAN[r.plan_id];
+    if (secDays != null) {
+      const secExp = addDays(anchor, secDays);
+      if (secExp > now) {
+        sectionsActive = true;
+        if (sectionsExpiresAt === null || secExp > sectionsExpiresAt) {
+          sectionsExpiresAt = secExp;
+        }
       }
     }
 

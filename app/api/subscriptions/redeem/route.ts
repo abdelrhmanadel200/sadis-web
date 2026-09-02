@@ -68,7 +68,9 @@ export async function POST(req: NextRequest) {
   } catch {
     return bad('JSON غير صالح');
   }
-  const code = (body.code || '').trim().toUpperCase();
+  // Codes are 16-digit numeric (new) or legacy SADIS-XXXX… — strip separators
+  // people naturally type/paste (spaces, dashes, RTL marks) then uppercase.
+  const code = (body.code || '').replace(/[\s\-‎‏]/g, '').toUpperCase();
   if (!code) return bad('الرمز مطلوب');
 
   // Resolve the caller from their bearer token (web client uses localStorage).
@@ -106,23 +108,79 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── Anti-guessing guard ──────────────────────────────────────────────
+  // 4 wrong codes → activation locked for 24h for this account. State lives
+  // in `redeem_attempts` (service-role only). All guard I/O is best-effort:
+  // if the table is missing we fall back to the old unguarded behaviour
+  // rather than blocking legitimate redemptions.
+  const MAX_ATTEMPTS = 4;
+  const LOCK_HOURS = 24;
+  try {
+    const { data: att } = await admin
+      .from('redeem_attempts')
+      .select('failed_count, locked_until')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (att?.locked_until && new Date(att.locked_until) > new Date()) {
+      const hoursLeft = Math.ceil(
+        (new Date(att.locked_until).getTime() - Date.now()) / 3_600_000,
+      );
+      return bad(
+        `تم إيقاف التفعيل مؤقتاً بسبب محاولات خاطئة متكررة. حاول بعد ${hoursLeft} ساعة.`,
+        429,
+      );
+    }
+  } catch { /* guard unavailable — continue */ }
+
+  // Register a wrong-code attempt and build the user-facing message.
+  const failAttempt = async (reason: string): Promise<Response> => {
+    let suffix = '';
+    try {
+      const { data: att } = await admin
+        .from('redeem_attempts')
+        .select('failed_count, locked_until')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const nextCount = (att?.failed_count ?? 0) + 1;
+      if (nextCount >= MAX_ATTEMPTS) {
+        const lockedUntil = new Date(Date.now() + LOCK_HOURS * 3_600_000);
+        await admin.from('redeem_attempts').upsert({
+          user_id: userId,
+          failed_count: 0,
+          locked_until: lockedUntil.toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        suffix = ` — استنفدت محاولاتك، تم إيقاف التفعيل لمدة ${LOCK_HOURS} ساعة.`;
+      } else {
+        await admin.from('redeem_attempts').upsert({
+          user_id: userId,
+          failed_count: nextCount,
+          locked_until: null,
+          updated_at: new Date().toISOString(),
+        });
+        suffix = ` (المحاولات المتبقية: ${MAX_ATTEMPTS - nextCount})`;
+      }
+    } catch { /* guard unavailable */ }
+    return bad(reason + suffix);
+  };
+
   const { data: couponRow } = await admin
     .from('coupons')
     .select('code, plan_id, duration_days, max_uses, used_count, expires_at')
     .eq('code', code)
     .maybeSingle();
   const coupon = couponRow as CouponRow | null;
-  if (!coupon) return bad('الرمز غير موجود');
+  if (!coupon) return failAttempt('الرمز غير موجود');
 
   if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-    return bad('انتهت صلاحية الرمز');
+    return failAttempt('انتهت صلاحية الرمز');
   }
   if (
     coupon.max_uses != null &&
     coupon.used_count != null &&
     coupon.used_count >= coupon.max_uses
   ) {
-    return bad('الرمز مستنفد');
+    return failAttempt('الرمز مستنفد');
   }
 
   // A subscription-coupon must point at a plan and have a positive duration.
@@ -195,6 +253,11 @@ export async function POST(req: NextRequest) {
       .eq('used_count', (coupon.used_count ?? 0) + 1);
     return bad('تعذّر تفعيل الاشتراك، حاول مرة أخرى', 500);
   }
+
+  // Successful redemption clears the wrong-attempt counter.
+  try {
+    await admin.from('redeem_attempts').delete().eq('user_id', userId);
+  } catch { /* guard unavailable */ }
 
   return ok({
     plan_id: plan.id,

@@ -250,6 +250,10 @@ const PLAN_LABELS: Record<string, { name: string; desc: string }> = {
     name: 'الباقة الأساسية',
     desc: 'كل الأقسام لمدة سنة، والأستاذ ذكي يتجدد شهرياً.',
   },
+  ai_refill: {
+    name: 'إعادة تعبئة الذكاء الاصطناعي',
+    desc: 'شهر إضافي من الأستاذ ذكي.',
+  },
 };
 
 function planName(id?: string | null, fallback?: string | null): string {
@@ -376,8 +380,16 @@ function PlanCard({
           generates and hands out manually. The chat monthly plan goes
           through ZainCash. */}
       {plan.track === 'lifetime' ? (
-        <div className="mt-auto rounded-xl border border-border bg-card/30 px-4 py-3 text-center text-xs text-muted-foreground">
-          تفعيل هذه الباقة يتم عبر <span className="font-bold text-foreground">رمز تفعيل</span> تستلمه من الموزّع المعتمد. ادخل الرمز في الخانة أعلى الصفحة لتفعيله.
+        <div className="mt-auto space-y-2">
+          <div className="rounded-xl border border-border bg-card/30 px-4 py-3 text-center text-xs text-muted-foreground">
+            تفعيل هذه الباقة يتم عبر <span className="font-bold text-foreground">رمز تفعيل</span> تستلمه من فريق التفعيل. ادخل الرمز في الخانة أعلى الصفحة لتفعيله.
+          </div>
+          <Link
+            href={`/activation-request?plan=${plan.id}`}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 transition"
+          >
+            طلب رمز التفعيل
+          </Link>
         </div>
       ) : (
         <button

@@ -15,7 +15,14 @@ interface ChatPayload {
   history?: { role: 'user' | 'assistant'; content: string }[];
   subjectId?: string | null;
   subjectName?: string | null;
+  /** Attached image as a data: URL (photo of a problem to solve). */
+  imageDataUrl?: string | null;
 }
+
+// ~4MB of base64 ≈ 3MB image — plenty for a phone photo, small enough for
+// one request body.
+const MAX_IMAGE_DATA_URL_LENGTH = 4 * 1024 * 1024;
+const IMAGE_DATA_URL_RE = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 
 function badRequest(msg: string) {
   return new Response(JSON.stringify({ error: msg }), {
@@ -80,7 +87,21 @@ export async function POST(req: NextRequest) {
     }));
   }
 
-  if (!question) return badRequest('Missing question');
+  // Attached image (optional). With an image, empty text is fine — the
+  // model is asked to solve what's in the picture.
+  let imageDataUrl: string | null = null;
+  if (body.imageDataUrl) {
+    if (
+      typeof body.imageDataUrl !== 'string' ||
+      body.imageDataUrl.length > MAX_IMAGE_DATA_URL_LENGTH ||
+      !IMAGE_DATA_URL_RE.test(body.imageDataUrl)
+    ) {
+      return badRequest('صورة غير صالحة أو أكبر من الحد المسموح');
+    }
+    imageDataUrl = body.imageDataUrl;
+  }
+
+  if (!question && !imageDataUrl) return badRequest('Missing question');
 
   // Best-effort RAG lookup. Empty result → falls back to general knowledge.
   // In demo mode we skip RAG entirely and feed the "platform intro" system
@@ -126,6 +147,7 @@ export async function POST(req: NextRequest) {
           subjectName: body.subjectName ?? null,
           ragContext,
           history,
+          imageDataUrl,
         })) {
           controller.enqueue(encoder.encode(chunk));
         }

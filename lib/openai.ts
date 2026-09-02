@@ -6,9 +6,15 @@
 const MODEL = 'gpt-4o-mini';
 const BASE_URL = 'https://api.openai.com/v1/chat/completions';
 
+// Content is a plain string for text-only turns, or a parts array when the
+// student attaches an image (gpt-4o-mini is multimodal).
+export type OpenAIContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
 export interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: string | OpenAIContentPart[];
 }
 
 // Public chat-history shape used by the front-end. Keeping the same shape and
@@ -82,6 +88,8 @@ export interface AskOptions {
   subjectName?: string | null;
   ragContext?: string | null;
   history?: ChatHistoryMessage[];
+  /** Optional attached image as a data: URL (e.g. a photo of a problem). */
+  imageDataUrl?: string | null;
 }
 
 function buildMessages({
@@ -89,6 +97,7 @@ function buildMessages({
   subjectName,
   ragContext,
   history = [],
+  imageDataUrl,
 }: AskOptions): OpenAIMessage[] {
   const messages: OpenAIMessage[] = [
     { role: 'system', content: buildSystemInstruction(subjectName, ragContext) },
@@ -99,7 +108,17 @@ function buildMessages({
       content: m.text,
     });
   }
-  messages.push({ role: 'user', content: question });
+  if (imageDataUrl) {
+    messages.push({
+      role: 'user',
+      content: [
+        { type: 'text', text: question || 'حل السؤال الموجود في الصورة وشرحه خطوة بخطوة.' },
+        { type: 'image_url', image_url: { url: imageDataUrl } },
+      ],
+    });
+  } else {
+    messages.push({ role: 'user', content: question });
+  }
   return messages;
 }
 

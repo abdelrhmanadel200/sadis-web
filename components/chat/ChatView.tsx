@@ -9,7 +9,7 @@ import {
 } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Send, ChevronDown, BookOpen, Mic } from 'lucide-react';
+import { Send, ChevronDown, BookOpen, Mic, ImagePlus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
 interface HistoryMessage {
@@ -48,6 +48,10 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
   const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  // صورة مرفقة مع السؤال (مثلاً صورة مسألة) — تُضغط قبل الإرسال.
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [subjectId, setSubjectId] = useState<string | null>(fixedSubjectId ?? null);
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
 
@@ -213,14 +217,52 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
     [user, subjectId]
   );
 
+  // ضغط الصورة على الجهاز (أقصى بُعد 1280px، JPEG) قبل تحويلها data URL —
+  // صور الموبايل الخام تتعدى حدود الطلب بسهولة.
+  const attachImage = (file: File) => {
+    setAttachError(null);
+    if (!file.type.startsWith('image/')) {
+      setAttachError('اختر ملف صورة (JPG أو PNG).');
+      return;
+    }
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX_DIM = 1280;
+      const scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        setAttachError('تعذّرت معالجة الصورة، حاول مرة ثانية.');
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      if (dataUrl.length > 4 * 1024 * 1024) {
+        setAttachError('الصورة كبيرة جداً حتى بعد الضغط — جرّب صورة أصغر.');
+        return;
+      }
+      setAttachedImage(dataUrl);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      setAttachError('تعذّرت قراءة الصورة، جرّب صورة أخرى.');
+    };
+    img.src = objectUrl;
+  };
+
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || sending) return;
+    const imageDataUrl = attachedImage;
+    if ((!text && !imageDataUrl) || sending) return;
 
     const userMsg: LocalMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: text,
+      content: imageDataUrl ? `📷 صورة مرفقة${text ? `\n\n${text}` : ''}` : text,
     };
     const botMsg: LocalMessage = {
       id: crypto.randomUUID(),
@@ -231,6 +273,8 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
 
     setMessages((m) => [...m, userMsg, botMsg]);
     setInput('');
+    setAttachedImage(null);
+    setAttachError(null);
     setSending(true);
 
     // Prepare history for OpenAI (before the new user msg)
@@ -240,8 +284,8 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
     }));
 
     // Ensure session & persist user message
-    const sid = await createSessionIfNeeded(text);
-    if (sid) await saveMessage(sid, 'user', text);
+    const sid = await createSessionIfNeeded(text || 'سؤال بصورة 📷');
+    if (sid) await saveMessage(sid, 'user', userMsg.content);
 
     let fullText = '';
     try {
@@ -258,6 +302,7 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
         headers,
         body: JSON.stringify({
           question: text,
+          imageDataUrl,
           subjectId: subjectId,
           subjectName: subject?.name_ar ?? null,
           history,
@@ -526,6 +571,29 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
       {/* Input */}
       <div className="border-t border-dark-border p-3 md:p-4">
         <div className="max-w-3xl mx-auto card border border-dark-border rounded-2xl p-2">
+          {/* معاينة الصورة المرفقة */}
+          {attachedImage && (
+            <div className="px-3 pt-2">
+              <div className="relative inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={attachedImage}
+                  alt="الصورة المرفقة"
+                  className="h-20 rounded-lg border border-dark-border object-cover"
+                />
+                <button
+                  onClick={() => setAttachedImage(null)}
+                  aria-label="إزالة الصورة"
+                  className="absolute -top-2 -start-2 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center hover:opacity-90"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+          {attachError && (
+            <p className="px-3 pt-2 text-xs text-red-400">{attachError}</p>
+          )}
           <textarea
             ref={textareaRef}
             value={input}
@@ -536,11 +604,33 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
             className="w-full resize-none bg-transparent outline-none px-3 py-2 font-tajawal text-[15px] leading-relaxed max-h-[200px]"
           />
           <div className="flex items-center justify-between px-1">
-            <LiveVoiceLink />
+            <div className="flex items-center gap-1">
+              <LiveVoiceLink />
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) attachImage(f);
+                  if (imageInputRef.current) imageInputRef.current.value = '';
+                }}
+              />
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={sending}
+                title="إرفاق صورة مسألة أو سؤال"
+                className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm text-muted hover:text-foreground hover:bg-card/60 transition disabled:opacity-50"
+              >
+                <ImagePlus className="w-4 h-4" />
+                <span className="hidden sm:inline">صورة</span>
+              </button>
+            </div>
 
             <button
               onClick={handleSend}
-              disabled={sending || !input.trim()}
+              disabled={sending || (!input.trim() && !attachedImage)}
               className="btn-primary !py-2 !px-4 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-4 h-4" />

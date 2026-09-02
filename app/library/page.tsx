@@ -88,7 +88,6 @@ function LibraryPageInner() {
   const [linkTitle, setLinkTitle] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   // Whether the new item is shared to the community library (public).
-  const [shareToCommunity, setShareToCommunity] = useState(true);
   // Member must accept the terms of use before contributing.
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   // بيانات الملف — نفس ترتيب فورم الكتب في لوحة التحكم (بطلب العميل).
@@ -196,7 +195,7 @@ function LibraryPageInner() {
         storage_path: path,
         file_size_bytes: file.size,
         mime_type: file.type || null,
-        is_public: shareToCommunity,
+        is_public: false,
       });
       if (insertErr) throw insertErr;
       setMetaTitle(''); setMetaAuthor('');
@@ -235,7 +234,7 @@ function LibraryPageInner() {
         subject_id: metaSubject || null,
         format: metaFormat || 'link',
         external_url: url,
-        is_public: shareToCommunity,
+        is_public: false,
       });
       if (insertErr) throw insertErr;
       setLinkTitle('');
@@ -485,19 +484,12 @@ function LibraryPageInner() {
             </div>
           )}
 
-          {/* Share to community */}
-          <label className="mt-4 flex items-center gap-2 text-sm cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={shareToCommunity}
-              onChange={(e) => setShareToCommunity(e.target.checked)}
-              className="w-4 h-4 accent-primary"
-            />
-            <span className="flex items-center gap-1.5">
-              <Globe className="w-4 h-4 text-primary-light" />
-              مشاركة مع مكتبة سادس (يراها بقية الطلاب بعد موافقة الإدارة)
-            </span>
-          </label>
+          {/* المشاركة مع بقية الطلاب صارت من صفحة مكتبة سادس نفسها */}
+          <p className="mt-4 text-sm text-muted flex items-center gap-1.5">
+            <Globe className="w-4 h-4 text-primary-light" />
+            الملفات هنا خاصة بك وحدك — لمشاركة ملف مع بقية الطلاب ارفعه من{' '}
+            <Link href="/library/browse" className="text-primary hover:underline">مكتبة سادس</Link>.
+          </p>
 
           {/* Terms acceptance — required to contribute */}
           <label className="mt-2 flex items-center gap-2 text-sm cursor-pointer select-none">

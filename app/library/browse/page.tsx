@@ -15,6 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { ReportButton } from '@/components/ReportButton';
+import LibraryShareForm from '@/components/LibraryShareForm';
 
 interface PublicFile {
   id: string;
@@ -137,6 +138,19 @@ function LibraryBrowsePageInner() {
             ملفات وملاحظات شاركها أعضاء المنصة. اضغط على علامة الإبلاغ للتبليغ عن أي محتوى ينتهك حقوق النشر.
           </p>
         </header>
+
+        {/* إخلاء مسؤولية — الملفات هنا من رفع الأعضاء أنفسهم */}
+        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-500 flex flex-wrap items-center gap-1">
+          <span>
+            الملفات المعروضة هنا مرفوعة من أعضاء المنصة أنفسهم، والموقع غير مسؤول
+            عن محتواها.
+          </span>
+          <Link href="/copyright" className="font-bold underline hover:opacity-80">
+            سياسة حقوق الطبع والنشر
+          </Link>
+        </div>
+
+        <LibraryShareForm user={user} onShared={() => void load()} />
 
         <div className="mb-6 relative max-w-md">
           <Search className="w-4 h-4 absolute top-1/2 -translate-y-1/2 start-3 text-muted" />

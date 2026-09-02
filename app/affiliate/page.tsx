@@ -23,6 +23,17 @@ interface Affiliate {
   active: boolean;
 }
 
+interface AffiliateApplication {
+  user_id: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  bio: string;
+  social_links: string | null;
+  status: string; // pending | approved | rejected
+  admin_note: string | null;
+}
+
 interface Referral {
   referred_user_id: string;
   status: string;
@@ -78,8 +89,15 @@ export default function AffiliatePage() {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [joining, setJoining] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // طلب الانضمام كمسوّق — يقدَّم للإدارة وتوافق عليه يدوياً.
+  const [application, setApplication] = useState<AffiliateApplication | null>(null);
+  const [appName, setAppName] = useState('');
+  const [appPhone, setAppPhone] = useState('');
+  const [appEmail, setAppEmail] = useState('');
+  const [appBio, setAppBio] = useState('');
+  const [appSocial, setAppSocial] = useState('');
+  const [appBusy, setAppBusy] = useState(false);
+  const [appError, setAppError] = useState<string | null>(null);
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
   // طلب سحب الأرباح
   const [payouts, setPayouts] = useState<Payout[]>([]);
@@ -105,6 +123,29 @@ export default function AffiliatePage() {
       .eq('user_id', user.id)
       .maybeSingle();
     setAffiliate((aff as Affiliate) ?? null);
+    if (!aff) {
+      // Not an affiliate yet — check for a pending/rejected application and
+      // prefill the form from the profile.
+      const [{ data: app }, { data: prof }] = await Promise.all([
+        supabase
+          .from('affiliate_applications')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('name, phone, email')
+          .eq('id', user.id)
+          .maybeSingle(),
+      ]);
+      const application = (app as AffiliateApplication) ?? null;
+      setApplication(application);
+      setAppName((v) => v || application?.full_name || (prof?.name as string) || '');
+      setAppPhone((v) => v || application?.phone || (prof?.phone as string) || '');
+      setAppEmail((v) => v || application?.email || (prof?.email as string) || user.email || '');
+      setAppBio((v) => v || application?.bio || '');
+      setAppSocial((v) => v || application?.social_links || '');
+    }
     if (aff) {
       const [{ data: refs }, { data: comms }, { data: pos }, { data: setting }] = await Promise.all([
         supabase
@@ -139,18 +180,42 @@ export default function AffiliatePage() {
     load();
   }, [load]);
 
-  const join = async () => {
-    setJoining(true);
-    setError(null);
+  // تقديم (أو إعادة تقديم بعد رفض) طلب الانضمام كمسوّق.
+  const submitApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAppError(null);
+    if (!user) return;
+    const name = appName.trim();
+    const phone = appPhone.trim();
+    const email = appEmail.trim();
+    const bio = appBio.trim();
+    if (!name) return setAppError('أدخل اسمك الكامل.');
+    if (!phone) return setAppError('أدخل رقم هاتفك.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setAppError('أدخل بريداً إلكترونياً صحيحاً.');
+    if (bio.length < 20) return setAppError('اكتب نبذة عنك لا تقل عن 20 حرفاً.');
+    setAppBusy(true);
     try {
-      const { data, error: rpcErr } = await supabase.rpc('become_affiliate');
-      if (rpcErr) throw rpcErr;
-      setAffiliate(data as Affiliate);
-      await load();
+      const payload = {
+        user_id: user.id,
+        full_name: name.slice(0, 120),
+        phone: phone.slice(0, 30),
+        email: email.slice(0, 160),
+        bio: bio.slice(0, 1000),
+        social_links: appSocial.trim().slice(0, 1000) || null,
+        status: 'pending',
+        admin_note: null,
+      };
+      // upsert يغطي حالتي التقديم الأول وإعادة التقديم بعد الرفض
+      // (سياسة RLS تسمح بالتعديل فقط عندما يكون الطلب مرفوضاً).
+      const { error: upErr } = application
+        ? await supabase.from('affiliate_applications').update(payload).eq('user_id', user.id)
+        : await supabase.from('affiliate_applications').insert(payload);
+      if (upErr) throw upErr;
+      setApplication({ ...payload, admin_note: null } as AffiliateApplication);
     } catch {
-      setError('تعذّر التسجيل، حاول مرة ثانية.');
+      setAppError('تعذّر إرسال الطلب، حاول مرة ثانية.');
     } finally {
-      setJoining(false);
+      setAppBusy(false);
     }
   };
 
@@ -237,24 +302,103 @@ export default function AffiliatePage() {
             <Loader2 className="w-5 h-5 animate-spin" /> جاري التحميل...
           </div>
         ) : !affiliate ? (
-          <div className="card border border-dark-border rounded-2xl p-8 text-center">
-            <div className="mx-auto w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center mb-4">
-              <Handshake className="w-8 h-8 text-primary" />
+          application?.status === 'pending' ? (
+            <div className="card border border-dark-border rounded-2xl p-8 text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/15 flex items-center justify-center mb-4">
+                <Handshake className="w-8 h-8 text-amber-500" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">طلبك قيد المراجعة</h2>
+              <p className="text-muted leading-relaxed">
+                استلمنا طلب انضمامك كمسوّق وستراجعه الإدارة قريباً. عند الموافقة
+                ستجد كودك ورابطك الخاصّين هنا مباشرة.
+              </p>
             </div>
-            <h2 className="text-xl font-bold mb-2">انضم كمسوّق</h2>
-            <p className="text-muted mb-6 leading-relaxed">
-              سجّل الآن وستحصل على كود ورابط خاصّين بك. أي طالب يسجّل عبرهما ويشترك،
-              تُحسب لك عمولة تلقائياً.
-            </p>
-            <button
-              onClick={join}
-              disabled={joining}
-              className="rounded-xl bg-primary text-primary-foreground font-bold px-8 py-3 hover:opacity-90 disabled:opacity-50"
-            >
-              {joining ? 'جاري التسجيل...' : 'سجّلني كمسوّق'}
-            </button>
-            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-          </div>
+          ) : (
+            <div className="card border border-dark-border rounded-2xl p-6 md:p-8">
+              <div className="text-center mb-6">
+                <div className="mx-auto w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center mb-4">
+                  <Handshake className="w-8 h-8 text-primary" />
+                </div>
+                <h2 className="text-xl font-bold mb-2">قدّم طلب انضمام كمسوّق</h2>
+                <p className="text-muted leading-relaxed text-sm">
+                  عرّفنا بنفسك وستراجع الإدارة طلبك. عند الموافقة تحصل على كود
+                  ورابط خاصّين بك وتُحسب لك عمولة عن كل طالب يشترك عن طريقك.
+                </p>
+              </div>
+              {application?.status === 'rejected' && (
+                <div className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  رُفض طلبك السابق{application.admin_note ? ` — ${application.admin_note}` : ''}. يمكنك تعديل بياناتك وإعادة التقديم.
+                </div>
+              )}
+              <form onSubmit={submitApplication} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-1.5">الاسم الكامل</label>
+                    <input
+                      value={appName}
+                      onChange={(e) => setAppName(e.target.value)}
+                      className="w-full rounded-xl border border-dark-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1.5">رقم الهاتف</label>
+                    <input
+                      dir="ltr"
+                      value={appPhone}
+                      onChange={(e) => setAppPhone(e.target.value)}
+                      placeholder="07XXXXXXXXX"
+                      className="w-full rounded-xl border border-dark-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5">البريد الإلكتروني الرسمي</label>
+                  <input
+                    dir="ltr"
+                    type="email"
+                    value={appEmail}
+                    onChange={(e) => setAppEmail(e.target.value)}
+                    className="w-full rounded-xl border border-dark-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5">نبذة عنك</label>
+                  <textarea
+                    value={appBio}
+                    onChange={(e) => setAppBio(e.target.value)}
+                    rows={3}
+                    placeholder="من أنت؟ وكيف ستسوّق للمنصة؟ (خبرتك، جمهورك، طريقتك...)"
+                    className="w-full rounded-xl border border-dark-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary resize-y"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5">
+                    صفحات التواصل الاجتماعي <span className="text-muted font-normal">(رابط في كل سطر)</span>
+                  </label>
+                  <textarea
+                    dir="ltr"
+                    value={appSocial}
+                    onChange={(e) => setAppSocial(e.target.value)}
+                    rows={3}
+                    placeholder={'https://t.me/...\nhttps://instagram.com/...\nhttps://tiktok.com/@...'}
+                    className="w-full rounded-xl border border-dark-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary resize-y font-mono"
+                  />
+                </div>
+                {appError && (
+                  <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+                    {appError}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={appBusy}
+                  className="w-full rounded-xl bg-primary text-primary-foreground font-bold px-8 py-3 hover:opacity-90 disabled:opacity-50"
+                >
+                  {appBusy ? 'جاري الإرسال...' : application?.status === 'rejected' ? 'إعادة تقديم الطلب' : 'إرسال طلب الانضمام'}
+                </button>
+              </form>
+            </div>
+          )
         ) : (
           <div className="space-y-6">
             {!affiliate.active && (

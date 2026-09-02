@@ -13,9 +13,11 @@ const GOVERNORATES = [
   'القادسية', 'المثنى', 'ميسان', 'دهوك', 'السليمانية', 'حلبجة',
 ];
 
+// أنواع الأكواد الثلاثة — يطلب الطالب أيّاً منها ويسلّمه فريق التفعيل الكود.
 const PLANS = [
-  { id: 'lifetime_access', label: 'الباقة السنوية (كل شيء لمدة سنة)' },
-  { id: 'chat_monthly', label: 'الباقة الأساسية (الأقسام سنة + الذكاء شهري)' },
+  { id: 'chat_monthly', label: 'كود تشغيل أقسام الموقع + شهر ذكاء اصطناعي' },
+  { id: 'ai_refill', label: 'كود إعادة تعبئة الذكاء الاصطناعي (شهر)' },
+  { id: 'lifetime_access', label: 'كود تشغيل الذكاء الاصطناعي سنة كاملة' },
 ];
 
 // Iraqi-aware phone normalizer (matches login/page.tsx).
@@ -36,7 +38,15 @@ export default function ActivationRequestPage() {
   const [governorate, setGovernorate] = useState('بغداد');
   const [area, setArea] = useState('');
   const [phone, setPhone] = useState('');
-  const [planId, setPlanId] = useState('lifetime_access');
+  const [planId, setPlanId] = useState('chat_monthly');
+
+  // Preselect the code type when arriving from a plan card
+  // (e.g. /activation-request?plan=lifetime_access). Read from
+  // window.location to avoid a useSearchParams Suspense boundary.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('plan');
+    if (p && PLANS.some((x) => x.id === p)) setPlanId(p);
+  }, []);
   const [refCode, setRefCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,7 +216,7 @@ export default function ActivationRequestPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-1.5">نوع الاشتراك</label>
+                <label className="block text-sm font-semibold mb-1.5">نوع الكود المطلوب</label>
                 <select
                   value={planId}
                   onChange={(e) => setPlanId(e.target.value)}
