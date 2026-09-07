@@ -147,7 +147,10 @@ export async function POST(req: NextRequest) {
           subjectName: body.subjectName ?? null,
           ragContext,
           history,
-          imageDataUrl,
+          // Demo mode refuses to answer curriculum questions anyway — sending
+          // the attachment would bill vision tokens for a canned refusal, and
+          // the free trial is currently open to every signed-in account.
+          imageDataUrl: demoMode ? null : imageDataUrl,
         })) {
           controller.enqueue(encoder.encode(chunk));
         }
