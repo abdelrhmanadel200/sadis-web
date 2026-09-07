@@ -68,10 +68,14 @@ export async function POST(req: NextRequest) {
   } catch {
     return bad('JSON غير صالح');
   }
-  // Codes are 16-digit numeric (new) or legacy SADIS-XXXX… — strip separators
-  // people naturally type/paste (spaces, dashes, RTL marks) then uppercase.
-  const code = (body.code || '').replace(/[\s\-‎‏]/g, '').toUpperCase();
-  if (!code) return bad('الرمز مطلوب');
+  // Two accepted formats: the new 16-digit numeric code, and the legacy
+  // SADIS-XXXX-XXXX-XXXX code that was already handed out. Strip the noise
+  // people paste (spaces, RTL marks) from both, and additionally try the
+  // dash-free form so "1234 5678 …" resolves — while keeping the dashed form
+  // as a candidate so an already-issued legacy code still matches its row.
+  const rawCode = (body.code || '').replace(/[\s‎‏]/g, '').toUpperCase();
+  const candidates = Array.from(new Set([rawCode, rawCode.replace(/-/g, '')].filter(Boolean)));
+  if (candidates.length === 0) return bad('الرمز مطلوب');
 
   // Resolve the caller from their bearer token (web client uses localStorage).
   const auth = req.headers.get('authorization') ?? '';
@@ -164,12 +168,12 @@ export async function POST(req: NextRequest) {
     return bad(reason + suffix);
   };
 
-  const { data: couponRow } = await admin
+  const { data: couponRows } = await admin
     .from('coupons')
     .select('code, plan_id, duration_days, max_uses, used_count, expires_at')
-    .eq('code', code)
-    .maybeSingle();
-  const coupon = couponRow as CouponRow | null;
+    .in('code', candidates)
+    .limit(1);
+  const coupon = (couponRows?.[0] as CouponRow | undefined) ?? null;
   if (!coupon) return failAttempt('الرمز غير موجود');
 
   if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
