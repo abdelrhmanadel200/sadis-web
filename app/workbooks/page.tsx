@@ -56,6 +56,9 @@ export default function WorkbooksPage() {
 
   const [importing, setImporting] = useState(false);
   const pdfInput = useRef<HTMLInputElement | null>(null);
+  // حارس فوري: حالة React لا تتحدث بين ضغطتَي Enter متتاليتين، فبدونه
+  // ينشئ الطالب دفترين متطابقين.
+  const creatingRef = useRef(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login?next=' + encodeURIComponent('/workbooks'));
@@ -76,9 +79,10 @@ export default function WorkbooksPage() {
   useEffect(() => { void load(); }, [load]);
 
   const createWorkbook = async () => {
-    if (!user) return;
+    if (!user || creatingRef.current) return;
     const title = newTitle.trim();
     if (!title) { setError('اكتب عنوان الدفتر أولاً.'); return; }
+    creatingRef.current = true;
     setCreating(true);
     setError(null);
     const { data, error: err } = await supabase
@@ -93,7 +97,11 @@ export default function WorkbooksPage() {
       .select('id')
       .single();
     setCreating(false);
-    if (err || !data) { setError('تعذّر إنشاء الدفتر، حاول مرة ثانية.'); return; }
+    if (err || !data) {
+      creatingRef.current = false;
+      setError('تعذّر إنشاء الدفتر، حاول مرة ثانية.');
+      return;
+    }
     router.push(`/workbooks/${data.id}`);
   };
 
@@ -137,10 +145,22 @@ export default function WorkbooksPage() {
 
   const remove = async (wb: Workbook) => {
     if (!confirm(`حذف "${wb.title}" نهائياً؟`)) return;
-    if (wb.pdf_path) {
-      await supabase.storage.from('workbooks').remove([wb.pdf_path]);
+    setError(null);
+    // احذف ملفات الدفتر أيضاً: الصور المضمّنة داخل الصفحات وملف الـ PDF
+    // المستورد. بدون ذلك تبقى في المخزن إلى الأبد وتستهلك المساحة.
+    const paths = collectStoragePaths(wb);
+    if (paths.length > 0) {
+      const { error: rmErr } = await supabase.storage.from('workbooks').remove(paths);
+      if (rmErr) {
+        setError('تعذّر حذف ملفات الدفتر، حاول مرة ثانية.');
+        return;
+      }
     }
-    await supabase.from('workbooks').delete().eq('id', wb.id);
+    const { error: delErr } = await supabase.from('workbooks').delete().eq('id', wb.id);
+    if (delErr) {
+      setError('تعذّر حذف الدفتر، حاول مرة ثانية.');
+      return;
+    }
     setRows((prev) => prev.filter((r) => r.id !== wb.id));
   };
 
@@ -324,6 +344,12 @@ export default function WorkbooksPage() {
                   className="w-full rounded-xl bg-card/40 border border-dark-border px-3 py-2.5 text-sm outline-none focus:border-primary"
                 />
               </div>
+              {error && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {error}
+                </div>
+              )}
               <p className="text-xs text-muted">
                 اكتب المادة والعنوان كما تحب — لا توجد قائمة مفروضة عليك.
               </p>
@@ -340,6 +366,28 @@ export default function WorkbooksPage() {
       )}
     </main>
   );
+}
+
+/** بادئة روابط المخزن العام لهذا المشروع — لاستخراج المسار من الرابط المحفوظ. */
+const PUBLIC_PREFIX = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}/storage/v1/object/public/workbooks/`;
+
+/** يجمع كل ملفات الدفتر في المخزن: صور الصفحات + ملف PDF المستورد. */
+function collectStoragePaths(wb: Workbook): string[] {
+  const paths = new Set<string>();
+  if (wb.pdf_path) paths.add(wb.pdf_path);
+
+  const visit = (node: unknown) => {
+    if (Array.isArray(node)) { node.forEach(visit); return; }
+    if (!node || typeof node !== 'object') return;
+    const n = node as { type?: string; attrs?: { src?: string }; content?: unknown };
+    if (n.type === 'image' && typeof n.attrs?.src === 'string' && n.attrs.src.startsWith(PUBLIC_PREFIX)) {
+      const path = decodeURIComponent(n.attrs.src.slice(PUBLIC_PREFIX.length).split('?')[0]);
+      if (path) paths.add(path);
+    }
+    if (n.content) visit(n.content);
+  };
+  visit(wb.content?.pages);
+  return Array.from(paths);
 }
 
 function WorkbookCard({

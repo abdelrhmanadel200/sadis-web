@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { EditorContent, useEditor, type Editor } from '@tiptap/react';
+import { EditorContent, useEditor } from '@tiptap/react';
+import { EditorState } from '@tiptap/pm/state';
 import { generateHTML } from '@tiptap/html';
 import DOMPurify from 'isomorphic-dompurify';
 import {
@@ -49,8 +50,12 @@ export interface WorkbookRow {
 }
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+// لا بد أن تطابق allowed_mime_types في مخزن workbooks، وإلا رفض السيرفر الملف
+// برسالة عامة مربكة للطالب.
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
 const MAX_PAGES = 60;
 const COLORS = ['#1a1a1a', '#1d4ed8', '#b91c1c', '#047857', '#7c3aed', '#b45309'];
+const LINE_HEIGHT_PX = 32;
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -77,6 +82,7 @@ export default function WorkbookEditor({
   const [subject, setSubject] = useState(workbook.subject ?? '');
   const [notice, setNotice] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState('');
   const [uploading, setUploading] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
 
@@ -88,6 +94,9 @@ export default function WorkbookEditor({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const switching = useRef(false);
   const imageInput = useRef<HTMLInputElement | null>(null);
+  // ترقيم الحفظات: استجابة قديمة بطيئة يجب ألا تقرر حالة المؤشر.
+  const saveSeq = useRef(0);
+  const lastAppliedSeq = useRef(0);
 
   useEffect(() => { pagesRef.current = pages; }, [pages]);
   useEffect(() => { currentRef.current = current; }, [current]);
@@ -95,6 +104,7 @@ export default function WorkbookEditor({
   useEffect(() => { subjectRef.current = subject; }, [subject]);
 
   const persist = useCallback(async () => {
+    const seq = ++saveSeq.current;
     setSaveState('saving');
     const { error } = await supabase
       .from('workbooks')
@@ -104,18 +114,20 @@ export default function WorkbookEditor({
         subject: subjectRef.current.trim() || null,
       })
       .eq('id', workbook.id);
-    if (error) {
-      setSaveState('error');
-      return;
-    }
-    setSaveState('saved');
+    // تجاهل نتيجة حفظ أقدم وصلت متأخرة بعد حفظ أحدث، وإلا قرّرت هي المؤشر.
+    if (seq < lastAppliedSeq.current) return;
+    lastAppliedSeq.current = seq;
+    setSaveState(error ? 'error' : 'saved');
   }, [workbook.id]);
 
   // حفظ تلقائي بعد توقف الكتابة بثانية ونصف.
   const scheduleSave = useCallback(() => {
     setSaveState('saving');
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => { void persist(); }, 1500);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      void persist();
+    }, 1500);
   }, [persist]);
 
   const editor = useEditor({
@@ -140,34 +152,61 @@ export default function WorkbookEditor({
     },
   });
 
-  // حفظ ما لم يُحفظ بعد عند مغادرة الصفحة.
+  // احفظ ما لم يُحفظ بعد عند مغادرة الصفحة أو إغلاق التبويب.
   useEffect(() => {
-    return () => {
+    const flush = () => {
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
+        saveTimer.current = null;
         void persist();
       }
+    };
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
     };
   }, [persist]);
 
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(null), 4000);
+    const t = setTimeout(() => setNotice(null), 5000);
     return () => clearTimeout(t);
   }, [notice]);
+
+  /**
+   * يضع مستند صفحة في المحرر بلا إطلاق onUpdate، ثم **يصفّر سجل التراجع**.
+   * بدون التصفير يبقى سجل واحد مشترك بين كل صفحات الدفتر، فيسحب Ctrl+Z محتوى
+   * صفحة أخرى فوق الصفحة الحالية ويحفظه تلقائياً — فقدان بيانات صامت.
+   */
+  const applyDoc = useCallback(
+    (doc: unknown) => {
+      if (!editor) return;
+      switching.current = true;
+      editor.commands.setContent(doc as never, false);
+      editor.view.updateState(
+        EditorState.create({
+          doc: editor.state.doc,
+          plugins: editor.state.plugins,
+        }),
+      );
+      switching.current = false;
+    },
+    [editor],
+  );
 
   const goToPage = useCallback(
     (idx: number) => {
       if (!editor || idx < 0 || idx >= pagesRef.current.length || idx === currentRef.current) return;
-      // احفظ الصفحة الحالية في الحالة قبل الانتقال.
-      switching.current = true;
+      if (uploading) {
+        setNotice('انتظر انتهاء رفع الصورة قبل تغيير الصفحة.');
+        return;
+      }
       setCurrent(idx);
       currentRef.current = idx;
-      editor.commands.setContent(pagesRef.current[idx].doc as never, false);
-      // اسمح لدورة الأحداث أن تنتهي قبل إعادة تشغيل مُراقب التعديل.
-      setTimeout(() => { switching.current = false; }, 0);
+      applyDoc(pagesRef.current[idx].doc);
     },
-    [editor],
+    [editor, applyDoc, uploading],
   );
 
   const addPage = useCallback(() => {
@@ -175,13 +214,20 @@ export default function WorkbookEditor({
       setNotice(`الحد الأقصى ${MAX_PAGES} صفحة في الدفتر الواحد.`);
       return;
     }
+    if (uploading) {
+      setNotice('انتظر انتهاء رفع الصورة أولاً.');
+      return;
+    }
     const page = newPage(`p${Date.now()}`);
     const nextPages = [...pagesRef.current, page];
     setPages(nextPages);
     pagesRef.current = nextPages;
+    const idx = nextPages.length - 1;
+    setCurrent(idx);
+    currentRef.current = idx;
+    applyDoc(page.doc);
     scheduleSave();
-    goToPage(nextPages.length - 1);
-  }, [goToPage, scheduleSave]);
+  }, [applyDoc, scheduleSave, uploading]);
 
   const deletePage = useCallback(() => {
     if (pagesRef.current.length <= 1) {
@@ -194,21 +240,18 @@ export default function WorkbookEditor({
     const nextIdx = Math.max(0, idx - 1);
     setPages(nextPages);
     pagesRef.current = nextPages;
-    // انتقل يدوياً لأن الفهرس الحالي تغيّر معناه بعد الحذف.
-    switching.current = true;
     setCurrent(nextIdx);
     currentRef.current = nextIdx;
-    editor?.commands.setContent(nextPages[nextIdx].doc as never, false);
-    setTimeout(() => { switching.current = false; }, 0);
+    applyDoc(nextPages[nextIdx].doc);
     scheduleSave();
-  }, [editor, scheduleSave]);
+  }, [applyDoc, scheduleSave]);
 
   const uploadImage = useCallback(
     async (file: File) => {
       if (!editor) return;
       setNotice(null);
-      if (!file.type.startsWith('image/')) {
-        setNotice('اختر ملف صورة.');
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        setNotice('الصيغ المدعومة: PNG و JPG و WEBP و GIF. حوّل الصورة لإحداها ثم أعد المحاولة.');
         return;
       }
       if (file.size > MAX_IMAGE_BYTES) {
@@ -224,6 +267,7 @@ export default function WorkbookEditor({
           .upload(path, file, { contentType: file.type, upsert: false });
         if (upErr) throw upErr;
         const { data } = supabase.storage.from('workbooks').getPublicUrl(path);
+        // التنقل بين الصفحات معطّل أثناء الرفع، فالصورة تُدرج حتماً في صفحتها.
         editor.chain().focus().setImage({ src: data.publicUrl }).run();
       } catch {
         setNotice('تعذّر رفع الصورة، حاول مرة ثانية.');
@@ -247,62 +291,33 @@ export default function WorkbookEditor({
     editor.commands.setYoutubeVideo({ src: clean });
   }, [editor]);
 
+  /** سؤال/جواب: نفس النوع يلغي التحديد، ونوع آخر يبدّله بدل أن يعشّش صندوقين. */
+  const toggleQa = useCallback(
+    (kind: 'question' | 'answer') => {
+      if (!editor) return;
+      if (editor.isActive('qaBlock', { kind })) {
+        editor.chain().focus().lift('qaBlock').run();
+      } else if (editor.isActive('qaBlock')) {
+        editor.chain().focus().updateAttributes('qaBlock', { kind }).run();
+      } else {
+        editor.chain().focus().wrapIn('qaBlock', { kind }).run();
+      }
+    },
+    [editor],
+  );
+
   const exportPdf = useCallback(async () => {
     setExporting(true);
     setNotice(null);
+    const allPages = pagesRef.current;
     let holder: HTMLDivElement | null = null;
     try {
-      // ابنِ نسخة ثابتة من كل صفحة على حدة (المحرر يعرض صفحة واحدة فقط).
+      // حاوية تحمل ورقة واحدة في كل مرة: html2canvas ينسخ الشجرة كاملة عند كل
+      // لقطة، فلو وُضعت الستون ورقة معاً صار العمل تربيعياً وتجمّد المتصفح.
       holder = document.createElement('div');
       holder.setAttribute('dir', 'rtl');
-      holder.style.cssText =
-        'position:fixed;left:-10000px;top:0;width:794px;background:#fdfaf3'; // عرض A4 عند 96dpi
-
-      const sheets: HTMLDivElement[] = pagesRef.current.map((page) => {
-        // محتوى الطالب نفسه، لكن يمر عبر منقٍّ قبل الحقن على أي حال.
-        const html = DOMPurify.sanitize(generateHTML(page.doc as never, workbookExtensions), {
-          ADD_TAGS: ['iframe'],
-          ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'data-youtube-video', 'data-kind'],
-        });
-        const sheet = document.createElement('div');
-        sheet.className = `${styles.paper} ${styles.content}`;
-        sheet.style.cssText = 'border-radius:0;box-shadow:none;min-height:1040px;width:794px';
-        sheet.innerHTML = `
-          <div class="${styles.lines}"></div>
-          <div class="${styles.margin}"></div>
-          <div class="${styles.watermark}">${Array.from({ length: 18 })
-            .map(() => `<span>${escapeHtml(studentName)} · ${escapeHtml(studentEmail)}</span>`)
-            .join('')}</div>
-          <div style="position:relative;z-index:1">${html}</div>
-        `;
-        // الـ iframe لا يُرسم في الـ PDF — استبدله بصندوق يحمل الرابط.
-        sheet.querySelectorAll('div[data-youtube-video]').forEach((node) => {
-          const src = node.querySelector('iframe')?.getAttribute('src') || '';
-          const box = document.createElement('div');
-          box.style.cssText =
-            'border:1px dashed #b45309;border-radius:10px;padding:10px 12px;margin:8px 0;background:rgba(234,179,8,.12);font-size:13px;color:#7c2d12;word-break:break-all';
-          box.textContent = `فيديو يوتيوب: ${src
-            .replace('/embed/', '/watch?v=')
-            .replace('www.youtube-nocookie.com', 'www.youtube.com')}`;
-          node.replaceWith(box);
-        });
-        holder!.appendChild(sheet);
-        return sheet;
-      });
-
+      holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;background:#fdfaf3';
       document.body.appendChild(holder);
-
-      // انتظر تحميل الصور وإلا خرجت فارغة في الـ PDF.
-      await Promise.all(
-        Array.from(holder.querySelectorAll('img')).map(
-          (img) =>
-            new Promise<void>((resolve) => {
-              if (img.complete) return resolve();
-              img.addEventListener('load', () => resolve(), { once: true });
-              img.addEventListener('error', () => resolve(), { once: true });
-            }),
-        ),
-      );
 
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import('html2canvas'),
@@ -314,10 +329,66 @@ export default function WorkbookEditor({
       const pageH = pdf.internal.pageSize.getHeight();
       const margin = 6;
       const usableW = pageW - margin * 2;
+      const usableH = pageH - margin * 2;
 
-      // صفحة صفحة: canvas واحد ضخم لكل الدفتر يتجاوز حد المتصفح ويخرج فارغاً.
-      for (let i = 0; i < sheets.length; i++) {
-        const canvas = await html2canvas(sheets[i], {
+      for (let i = 0; i < allPages.length; i++) {
+        setExportProgress(`${i + 1}/${allPages.length}`);
+        // محتوى الطالب نفسه، لكن يمر عبر منقٍّ قبل الحقن على أي حال.
+        const html = DOMPurify.sanitize(generateHTML(allPages[i].doc as never, workbookExtensions), {
+          ADD_TAGS: ['iframe'],
+          ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'data-youtube-video', 'data-kind'],
+        });
+
+        const sheet = document.createElement('div');
+        sheet.className = `${styles.paper} ${styles.content}`;
+        sheet.style.cssText = 'border-radius:0;box-shadow:none;min-height:1040px;width:794px';
+        // صنف ProseMirror ضروري: تنسيقات العناوين والقوائم والاقتباس معلّقة
+        // عليه في ملف الأنماط، وبدونه يخرج الـ PDF نصاً عادياً بلا تنسيق.
+        sheet.innerHTML = `
+          <div class="${styles.margin}"></div>
+          <div class="${styles.watermark}">${Array.from({ length: 18 })
+            .map(() => `<span>${escapeHtml(studentName)} · ${escapeHtml(studentEmail)}</span>`)
+            .join('')}</div>
+          <div style="position:relative;z-index:1"><div class="ProseMirror">${html}</div></div>
+        `;
+        // الـ iframe لا يُرسم في الـ PDF — استبدله بصندوق يحمل الرابط.
+        sheet.querySelectorAll('div[data-youtube-video]').forEach((node) => {
+          const src = node.querySelector('iframe')?.getAttribute('src') || '';
+          const box = document.createElement('div');
+          box.style.cssText =
+            'border:1px dashed #b45309;border-radius:10px;padding:10px 12px;margin:8px 0;background:rgba(234,179,8,.12);font-size:13px;color:#7c2d12;word-break:break-all';
+          box.textContent = `فيديو يوتيوب: ${youtubeWatchUrl(src)}`;
+          node.replaceWith(box);
+        });
+
+        holder.appendChild(sheet);
+
+        // انتظر تحميل الصور وإلا خرجت فارغة في الـ PDF.
+        await Promise.all(
+          Array.from(sheet.querySelectorAll('img')).map(
+            (img) =>
+              new Promise<void>((resolve) => {
+                if (img.complete) return resolve();
+                img.addEventListener('load', () => resolve(), { once: true });
+                img.addEventListener('error', () => resolve(), { once: true });
+              }),
+          ),
+        );
+
+        // html2canvas لا يرسم repeating-linear-gradient، فتضيع سطور الدفتر من
+        // الـ PDF. نرسمها عناصر حقيقية بعد أن يستقر ارتفاع الورقة.
+        const ruled = document.createElement('div');
+        ruled.style.cssText = 'position:absolute;inset:0;z-index:0;pointer-events:none';
+        const lineCount = Math.ceil(sheet.scrollHeight / LINE_HEIGHT_PX);
+        ruled.innerHTML = Array.from({ length: lineCount })
+          .map(
+            (_, k) =>
+              `<div style="position:absolute;left:0;right:0;top:${(k + 1) * LINE_HEIGHT_PX}px;height:1px;background:#cfd8e3"></div>`,
+          )
+          .join('');
+        sheet.insertBefore(ruled, sheet.firstChild);
+
+        const canvas = await html2canvas(sheet, {
           scale: 2,
           useCORS: true,
           backgroundColor: '#fdfaf3',
@@ -325,34 +396,34 @@ export default function WorkbookEditor({
         });
         const img = canvas.toDataURL('image/jpeg', 0.95);
         const imgH = (usableW * canvas.height) / canvas.width;
+
         if (i > 0) pdf.addPage();
-        // صفحة الدفتر الواحدة قد تتجاوز طول A4 — قسّمها على عدة صفحات PDF.
-        let heightLeft = imgH;
-        let position = margin;
-        pdf.addImage(img, 'JPEG', margin, position, usableW, imgH);
-        heightLeft -= pageH - margin * 2;
-        while (heightLeft > 0) {
-          position = margin - (imgH - heightLeft);
-          pdf.addPage();
-          pdf.addImage(img, 'JPEG', margin, position, usableW, imgH);
-          heightLeft -= pageH - margin * 2;
+        // ورقة الدفتر قد تتجاوز طول A4 — تُقسَّم على صفحات متتالية بإزاحة
+        // مقدارها ارتفاع المساحة المفيدة بالضبط: بلا شريط مكرر ولا صفحة زائدة.
+        let consumed = 0;
+        let first = true;
+        while (consumed < imgH - 1) {
+          if (!first) pdf.addPage();
+          pdf.addImage(img, 'JPEG', margin, margin - consumed, usableW, imgH);
+          consumed += usableH;
+          first = false;
         }
+
+        sheet.remove();
       }
 
-      const safeName = (titleRef.current || 'دفتر').replace(/[\/:*?"<>|]+/g, '_').slice(0, 60);
+      const safeName = (titleRef.current || 'دفتر').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60);
       pdf.save(`${safeName}.pdf`);
     } catch {
       setNotice('تعذّر تصدير الـ PDF، حاول مرة ثانية.');
     } finally {
       holder?.remove();
+      setExportProgress('');
       setExporting(false);
     }
   }, [studentEmail, studentName]);
 
-  const watermarkCells = useMemo(
-    () => Array.from({ length: 18 }, (_, i) => i),
-    [],
-  );
+  const watermarkCells = useMemo(() => Array.from({ length: 18 }, (_, i) => i), []);
 
   return (
     <div dir="rtl">
@@ -373,7 +444,7 @@ export default function WorkbookEditor({
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary text-white text-sm font-bold px-4 py-2 hover:opacity-90 disabled:opacity-50"
           >
             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            {exporting ? 'جاري التصدير...' : 'تصدير PDF'}
+            {exporting ? `جاري التصدير ${exportProgress}` : 'تصدير PDF'}
           </button>
         </div>
       </div>
@@ -417,8 +488,8 @@ export default function WorkbookEditor({
         <ToolBtn onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} label="قائمة"><List className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => editor?.chain().focus().toggleOrderedList().run()} active={editor?.isActive('orderedList')} label="قائمة مرقمة"><ListOrdered className="w-4 h-4" /></ToolBtn>
         <Sep />
-        <ToolBtn onClick={() => editor?.chain().focus().toggleWrap('qaBlock', { kind: 'question' }).run()} active={editor?.isActive('qaBlock', { kind: 'question' })} label="سؤال"><HelpCircle className="w-4 h-4" /></ToolBtn>
-        <ToolBtn onClick={() => editor?.chain().focus().toggleWrap('qaBlock', { kind: 'answer' }).run()} active={editor?.isActive('qaBlock', { kind: 'answer' })} label="جواب"><CheckCircle2 className="w-4 h-4" /></ToolBtn>
+        <ToolBtn onClick={() => toggleQa('question')} active={editor?.isActive('qaBlock', { kind: 'question' })} label="سؤال"><HelpCircle className="w-4 h-4" /></ToolBtn>
+        <ToolBtn onClick={() => toggleQa('answer')} active={editor?.isActive('qaBlock', { kind: 'answer' })} label="جواب"><CheckCircle2 className="w-4 h-4" /></ToolBtn>
         <Sep />
         <div className="relative">
           <ToolBtn onClick={() => setColorOpen((v) => !v)} label="لون الخط"><Palette className="w-4 h-4" /></ToolBtn>
@@ -449,7 +520,7 @@ export default function WorkbookEditor({
         <input
           ref={imageInput}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp,image/gif"
           className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadImage(f); }}
         />
@@ -478,7 +549,7 @@ export default function WorkbookEditor({
 
       {/* التنقل بين الصفحات */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => goToPage(current - 1)}
             disabled={current === 0}
@@ -487,12 +558,12 @@ export default function WorkbookEditor({
             <ChevronRight className="w-4 h-4" />
             السابق
           </button>
-          <div className="flex flex-wrap items-center gap-1 max-w-[50vw] overflow-x-auto">
+          <div className="flex items-center gap-1 max-w-[60vw] overflow-x-auto py-1">
             {pages.map((p, i) => (
               <button
                 key={p.id}
                 onClick={() => goToPage(i)}
-                className={`h-8 min-w-8 rounded-lg px-2 text-sm font-bold transition ${
+                className={`h-8 min-w-8 shrink-0 rounded-lg px-2 text-sm font-bold transition ${
                   i === current
                     ? 'bg-primary text-white'
                     : 'border border-dark-border text-muted hover:border-primary'
@@ -512,7 +583,7 @@ export default function WorkbookEditor({
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted">صفحة {current + 1} من {pages.length}</span>
           <button
             onClick={addPage}
@@ -598,4 +669,8 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export type { Editor };
+/** يحوّل رابط التضمين إلى رابط مشاهدة عادي ليعمل عند نسخه من الـ PDF. */
+function youtubeWatchUrl(embedSrc: string): string {
+  const m = embedSrc.match(/\/embed\/([A-Za-z0-9_-]{6,})/);
+  return m ? `https://www.youtube.com/watch?v=${m[1]}` : embedSrc;
+}

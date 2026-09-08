@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
@@ -24,6 +24,11 @@ export default function WorkbookPage() {
       router.replace('/login?next=' + encodeURIComponent(`/workbooks/${id ?? ''}`));
     }
   }, [authLoading, user, router, id]);
+
+  // تحميل واحد لكل دفتر. Supabase يجدّد التوكن دورياً فيتغيّر كائن المستخدم،
+  // ولو أعدنا التحميل عندها لعاد العرض إلى شاشة الانتظار، فانهدم المحرر وضاعت
+  // الكتابة غير المحفوظة وعاد الطالب للصفحة الأولى.
+  const loadedFor = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user || !id) return;
@@ -50,7 +55,12 @@ export default function WorkbookPage() {
     setLoading(false);
   }, [user, id]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!user || !id) return;
+    if (loadedFor.current === id) return;
+    loadedFor.current = id;
+    void load();
+  }, [user, id, load]);
 
   if (authLoading || loading) {
     return (
