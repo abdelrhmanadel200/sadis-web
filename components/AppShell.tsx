@@ -23,6 +23,7 @@ import {
   Crown,
   ClipboardList,
   NotebookPen,
+  Backpack,
   MapPin,
   Send,
   CalendarDays,
@@ -170,6 +171,7 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
           <NavLink href="/books" active={pathname.startsWith('/books')} icon={<BookMarked className="w-5 h-5" />} label="مكتبة أُلترا" />
           <NavLink href="/library/browse" active={pathname.startsWith('/library/browse')} icon={<UsersIcon className="w-5 h-5" />} label="مكتبة سادس" />
           <NavLink href="/drafts" active={pathname.startsWith('/drafts')} icon={<NotebookPen className="w-5 h-5" />} label="المسودة" />
+          <NavLink href="/workbooks" active={pathname.startsWith('/workbooks')} icon={<Backpack className="w-5 h-5" />} label="حقيبة الدفاتر" />
           <NavLink href="/institutes" active={pathname.startsWith('/institutes')} icon={<MapPin className="w-5 h-5" />} label="المعاهد" />
           <NavLink href="/telegram" active={pathname.startsWith('/telegram')} icon={<Send className="w-5 h-5" />} label="قنوات تليجرام" />
           <NavLink href="/calendar" active={pathname.startsWith('/calendar') || pathname.startsWith('/schedule')} icon={<CalendarDays className="w-5 h-5" />} label="تقويم السادس" />
