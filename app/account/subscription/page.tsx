@@ -56,7 +56,6 @@ function SubscriptionPageInner() {
   const [currentSub, setCurrentSub] = useState<Subscription | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [checkoutBusy, setCheckoutBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,36 +97,6 @@ function SubscriptionPageInner() {
       setError('تعذّر تحميل بيانات الاشتراك');
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function startCheckout(planId: string) {
-    setCheckoutBusy(planId);
-    setError(null);
-    try {
-      // Attach the access token explicitly — supabase-js persists the
-      // session in localStorage by default, so the server-side cookie
-      // session is empty and /api/checkout would 401 without this header.
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`;
-      }
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ plan_id: planId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.message || 'تعذّر بدء عملية الدفع');
-        return;
-      }
-      if (data.checkout_url) window.location.href = data.checkout_url;
-    } catch {
-      setError('تعذّر الاتصال بالخادم');
-    } finally {
-      setCheckoutBusy(null);
     }
   }
 
@@ -219,10 +188,38 @@ function SubscriptionPageInner() {
                 key={plan.id}
                 plan={plan}
                 isCurrent={currentSub?.plan_id === plan.id && Boolean(isActive)}
-                busy={checkoutBusy === plan.id}
-                onSubscribe={() => startCheckout(plan.id)}
               />
             ))}
+            {/* إعادة تعبئة الذكاء الاصطناعي: للطالب الذي انتهى شهر الذكاء عنده
+                وما زالت أقسامه مفعّلة — تُطلب بالكود مثل بقية الباقات. */}
+            <div className="rounded-2xl border border-border bg-card/40 hover:border-primary/40 p-5 flex flex-col gap-3 transition">
+              <h3 className="font-bold text-lg">إعادة تعبئة الذكاء الاصطناعي</h3>
+              <p className="text-sm text-muted-foreground min-h-[40px]">
+                شهر إضافي من الأستاذ ذكي لمن سبق أن فعّل الباقة الأساسية.
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-1 mt-2 mb-4">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-primary" /> الأستاذ ذكي لمدة شهر كامل
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-primary" /> 50 سؤال نصي و5 صوتية يومياً
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-primary" /> حل المسائل بالصورة
+                </li>
+              </ul>
+              <div className="mt-auto space-y-2">
+                <div className="rounded-xl border border-border bg-card/30 px-4 py-3 text-center text-xs text-muted-foreground">
+                  تُفعَّل عبر <span className="font-bold text-foreground">رمز تفعيل</span> تستلمه من فريق التفعيل.
+                </div>
+                <Link
+                  href="/activation-request?plan=ai_refill"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 transition"
+                >
+                  طلب رمز التفعيل
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -305,13 +302,9 @@ function ActiveCard({ sub }: { sub: Subscription }) {
 function PlanCard({
   plan,
   isCurrent,
-  busy,
-  onSubscribe,
 }: {
   plan: SubscriptionPlan;
   isCurrent: boolean;
-  busy: boolean;
-  onSubscribe: () => void;
 }) {
   return (
     <div
@@ -379,27 +372,25 @@ function PlanCard({
           sold via the online checkout — only via coupon codes the admin
           generates and hands out manually. The chat monthly plan goes
           through ZainCash. */}
-      {plan.track === 'lifetime' ? (
-        <div className="mt-auto space-y-2">
-          <div className="rounded-xl border border-border bg-card/30 px-4 py-3 text-center text-xs text-muted-foreground">
-            تفعيل هذه الباقة يتم عبر <span className="font-bold text-foreground">رمز تفعيل</span> تستلمه من فريق التفعيل. ادخل الرمز في الخانة أعلى الصفحة لتفعيله.
+      {/* كل الباقات تُفعَّل بالكود: بوابة الدفع الإلكتروني غير مفعّلة، والطالب
+          كان يصل لرسالة "بوابة الدفع غير مفعلة" عند الضغط على اشترك الآن. */}
+      <div className="mt-auto space-y-2">
+        <div className="rounded-xl border border-border bg-card/30 px-4 py-3 text-center text-xs text-muted-foreground">
+          تفعيل هذه الباقة يتم عبر <span className="font-bold text-foreground">رمز تفعيل</span> تستلمه من فريق التفعيل. ادخل الرمز في الخانة أعلى الصفحة لتفعيله.
+        </div>
+        {isCurrent ? (
+          <div className="inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+            مفعّل
           </div>
+        ) : (
           <Link
             href={`/activation-request?plan=${plan.id}`}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 transition"
           >
             طلب رمز التفعيل
           </Link>
-        </div>
-      ) : (
-        <button
-          onClick={onSubscribe}
-          disabled={busy || isCurrent}
-          className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition"
-        >
-          {isCurrent ? 'مفعّل' : busy ? 'جاري...' : 'اشترك الآن'}
-        </button>
-      )}
+        )}
+      </div>
     </div>
   );
 }

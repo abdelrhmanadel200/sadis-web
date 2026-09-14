@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Plus,
   Trash2,
+  Download,
   Loader2,
   ImagePlus,
   Pencil,
@@ -38,6 +39,28 @@ interface Draft {
 }
 
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#111827'];
+
+/**
+ * تحميل صورة المسودة على الجهاز — الطالب يصوّر على الموبايل ويسحبها من اللابتوب.
+ * نجلبها كـ blob لأن رابط التوقيع لا يحترم سمة download عبر النطاقات.
+ */
+async function downloadImage(d: Draft, url: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const ext = (d.image_path?.split('.').pop() || 'jpg').toLowerCase();
+    const safe = (d.title || 'مسودة').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${safe}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  } catch {
+    alert('تعذّر تحميل الصورة، حاول مرة ثانية.');
+  }
+}
 
 export default function DraftsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -164,6 +187,15 @@ export default function DraftsPage() {
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
+                    {urls[d.id] && (
+                      <button
+                        onClick={() => downloadImage(d, urls[d.id])}
+                        className="p-2 rounded-lg hover:bg-primary/10 text-primary"
+                        title="تحميل الصورة على الجهاز"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => remove(d.id)}
                       className="p-2 rounded-lg hover:bg-destructive/10 text-destructive"

@@ -142,7 +142,7 @@ export default function SchedulePage() {
                 <tr>
                   <th className="w-16 text-xs text-muted font-semibold pb-2">الحصة</th>
                   {DAYS.map((d) => (
-                    <th key={d} className="text-sm font-bold pb-2 text-white">
+                    <th key={d} className="text-sm font-bold pb-2 text-foreground">
                       {d}
                     </th>
                   ))}
@@ -165,7 +165,7 @@ export default function SchedulePage() {
                               value={c.subject}
                               onChange={(e) => update(d, p, { subject: e.target.value })}
                               placeholder="المادة"
-                              className="w-full bg-transparent text-sm font-semibold text-center text-white outline-none placeholder:text-gray-500"
+                              className="w-full bg-transparent text-sm font-semibold text-center text-foreground outline-none placeholder:text-muted-foreground"
                             />
                             <input
                               value={c.note}
