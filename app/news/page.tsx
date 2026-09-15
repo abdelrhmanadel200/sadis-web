@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Loader2, Newspaper, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useReactions, ReactionBar, OfficialBadge } from '@/components/reactions';
 
 interface News {
   id: string;
@@ -30,6 +31,7 @@ function formatDate(d: string | null): string {
 
 export default function NewsPage() {
   const [rows, setRows] = useState<News[]>([]);
+  const { counts: rx, toggle: toggleRx } = useReactions('news', rows.map((n) => n.id));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -88,7 +90,7 @@ export default function NewsPage() {
                     {formatDate(n.published_at)}
                   </div>
                 </div>
-                <h3 className="font-bold text-lg mb-1">{n.title}</h3>
+                <h3 className="font-bold text-lg mb-1 flex items-center gap-2 flex-wrap">{n.title} <OfficialBadge /></h3>
                 {n.body && (
                   <p className="text-sm text-muted leading-relaxed whitespace-pre-line">
                     {n.body}
@@ -104,6 +106,9 @@ export default function NewsPage() {
                     المصدر <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}
+                <div className="mt-3 pt-3 border-t border-dark-border">
+                  <ReactionBar itemId={n.id} counts={rx[n.id]} onToggle={toggleRx} />
+                </div>
               </article>
             ))}
           </div>

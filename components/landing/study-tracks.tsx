@@ -1,33 +1,38 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
-  FlaskConical, 
-  Calculator, 
-  Atom, 
-  Globe, 
-  BookOpen, 
-  Languages, 
-  PenTool,
+  FlaskConical,
+  Calculator,
+  Atom,
+  Globe,
+  BookOpen,
+  Languages,
   History,
-  ArrowLeft
+  Dna,
+  Moon,
+  TrendingUp,
+  ArrowLeft,
 } from "lucide-react"
 
+// نفس مواد المنصة الفعلية (lib/subjects.ts): الرياضيات مادتان منفصلتان للفرعين.
 const scientificSubjects = [
   { icon: Calculator, name: "الرياضيات" },
   { icon: Atom, name: "الفيزياء" },
   { icon: FlaskConical, name: "الكيمياء" },
-  { icon: Globe, name: "الأحياء" },
-  { icon: Languages, name: "الإنجليزية" },
-  { icon: BookOpen, name: "العربية" },
+  { icon: Dna, name: "الأحياء" },
+  { icon: Languages, name: "الإنجليزي" },
+  { icon: BookOpen, name: "العربي" },
+  { icon: Moon, name: "الإسلامية" },
 ]
 
 const literarySubjects = [
+  { icon: Calculator, name: "الرياضيات" },
   { icon: History, name: "التاريخ" },
-  { icon: Globe, name: "الجغرافية" },
-  { icon: BookOpen, name: "الأدب العربي" },
-  { icon: PenTool, name: "البلاغة" },
-  { icon: Languages, name: "الإنجليزية" },
-  { icon: BookOpen, name: "الإسلامية" },
+  { icon: Globe, name: "الجغرافيا" },
+  { icon: TrendingUp, name: "الاقتصاد" },
+  { icon: Languages, name: "الإنجليزي" },
+  { icon: BookOpen, name: "العربي" },
+  { icon: Moon, name: "الإسلامية" },
 ]
 
 export function StudyTracks() {
@@ -47,7 +52,7 @@ export function StudyTracks() {
           </h2>
 
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            نغطي جميع المواد الدراسية للفرعين العلمي والأدبي بما يتوافق مع المنهج العراقي المعتمد
+            تختار فرعك مرة واحدة عند الدخول، فتظهر لك مواد فرعك فقط في الدردشة والمواد، مع رياضيات خاصة بكل فرع
           </p>
         </div>
 
@@ -80,7 +85,7 @@ export function StudyTracks() {
             </div>
 
             <Button asChild className="w-full gradient-accent text-primary-foreground border-0 gap-2">
-              <Link href="/account/subscription?plan=chat_monthly">
+              <Link href="/subjects">
                 ابدأ الدراسة
                 <ArrowLeft className="h-4 w-4" />
               </Link>
@@ -118,7 +123,7 @@ export function StudyTracks() {
               variant="outline"
               className="w-full glass gap-2"
             >
-              <Link href="/account/subscription?plan=chat_monthly">
+              <Link href="/subjects">
                 ابدأ الدراسة
                 <ArrowLeft className="h-4 w-4" />
               </Link>

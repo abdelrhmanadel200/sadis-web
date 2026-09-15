@@ -35,7 +35,7 @@ const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
 // اقتراحات فقط: الطالب يكتب أي مادة يريدها بحرية.
 const SUBJECT_SUGGESTIONS = [
-  'الرياضيات', 'الفيزياء', 'الكيمياء', 'الأحياء', 'العربي',
+  'الرياضيات (علمي)', 'الرياضيات (أدبي)', 'الفيزياء', 'الكيمياء', 'الأحياء', 'العربي',
   'الإنجليزي', 'الإسلامية', 'التاريخ', 'الجغرافيا', 'الاقتصاد',
 ];
 
@@ -379,9 +379,10 @@ function collectStoragePaths(wb: Workbook): string[] {
   const visit = (node: unknown) => {
     if (Array.isArray(node)) { node.forEach(visit); return; }
     if (!node || typeof node !== 'object') return;
-    const n = node as { type?: string; attrs?: { src?: string }; content?: unknown };
-    if (n.type === 'image' && typeof n.attrs?.src === 'string' && n.attrs.src.startsWith(PUBLIC_PREFIX)) {
-      const path = decodeURIComponent(n.attrs.src.slice(PUBLIC_PREFIX.length).split('?')[0]);
+    const n = node as { type?: string; attrs?: { src?: string; bg?: string }; content?: unknown };
+    const url = n.type === 'image' ? n.attrs?.src : n.type === 'drawing' ? n.attrs?.bg : undefined;
+    if (typeof url === 'string' && url.startsWith(PUBLIC_PREFIX)) {
+      const path = decodeURIComponent(url.slice(PUBLIC_PREFIX.length).split('?')[0]);
       if (path) paths.add(path);
     }
     if (n.content) visit(n.content);

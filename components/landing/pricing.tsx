@@ -1,24 +1,24 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Check, Sparkles, Crown, ArrowLeft } from "lucide-react"
+import { Check, Sparkles, Crown, ArrowLeft, ClipboardList, KeyRound, BadgeCheck } from "lucide-react"
 
 // Plans here MUST stay in sync with `subscription_plans.id` in Supabase.
-// Clicking subscribe sends the visitor to /account/subscription which is
-// where the authenticated checkout actually happens.
+// Every plan is activated with a code: the button opens the code request form.
 const plans = [
   {
     id: "chat_monthly",
     name: "الباقة الأساسية",
     nameEn: "Basic",
     priceIQD: "25,000 د.ع",
-    period: "الأقسام سنة + الذكاء شهري",
-    description: "كل الأقسام لمدة سنة، والأستاذ ذكي يتجدد شهرياً",
+    period: "الأقسام سنة + الذكاء شهر",
+    description: "كل أقسام المنصة لمدة سنة، والأستاذ ذكي لمدة شهر قابل للتجديد",
     features: [
-      "المكتبة والمحاضرات والكتب لمدة سنة",
-      "الأستاذ ذكي لمدة شهر (يتجدد شهرياً)",
-      "50 سؤال نصي و5 صوتية يومياً",
-      "حل المسائل بالصور",
-      "دخول المنتدى مجاناً",
+      "كل الأقسام لمدة سنة كاملة",
+      "مكتبة أُلترا ومكتبة سادس والأسئلة الوزارية",
+      "المحاضرات وحقيبة الدفاتر والمسودة",
+      "الأستاذ ذكي لمدة شهر ويتجدد بكود إعادة التعبئة",
+      "50 سؤال نصي و5 صوتية يوميا",
+      "حل المسائل بالصورة",
     ],
     popular: false,
     icon: Sparkles,
@@ -28,18 +28,25 @@ const plans = [
     name: "الباقة السنوية",
     nameEn: "Yearly",
     priceIQD: "250,000 د.ع",
-    period: "سنوي — كل شيء",
+    period: "سنة كاملة لكل شيء",
     description: "كل الأقسام والأستاذ ذكي لمدة سنة كاملة",
     features: [
-      "المكتبة والمحاضرات والكتب لمدة سنة",
+      "كل الأقسام لمدة سنة كاملة",
       "الأستاذ ذكي لمدة سنة كاملة",
-      "50 سؤال نصي و5 صوتية يومياً",
       "بدون تجديد شهري للذكاء",
-      "دخول المنتدى مجاناً",
+      "50 سؤال نصي و5 صوتية يوميا",
+      "حل المسائل بالصورة",
+      "دخول المنتدى بدون اشتراك",
     ],
     popular: true,
     icon: Crown,
   },
+]
+
+const steps = [
+  { icon: ClipboardList, title: "اطلب الكود", text: "اختر نوع الكود واملأ بياناتك" },
+  { icon: KeyRound, title: "استلم الرمز", text: "يتواصل معك فريق التفعيل ويسلمك الرمز" },
+  { icon: BadgeCheck, title: "فعّل حسابك", text: "أدخل الرمز في صفحة الاشتراك" },
 ]
 
 export function Pricing() {
@@ -47,7 +54,7 @@ export function Pricing() {
     <section id="pricing" className="py-24 relative">
       {/* Gradient transition from Community section */}
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-primary/5 via-primary/10 to-transparent pointer-events-none" />
-      
+
       {/* Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-primary/10 rounded-full blur-3xl" />
@@ -63,13 +70,13 @@ export function Pricing() {
           </div>
 
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-balance">
-            <span className="text-foreground">اختر خطتك</span>
+            <span className="text-foreground">اختر باقتك</span>
             <br />
             <span className="text-primary">وابدأ التفوق اليوم</span>
           </h2>
 
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            أسعار مناسبة لجميع الطلاب مع ضمان جودة الخدمة والدعم المستمر
+            اشتراك واحد يفتح لك المنصة كلها، والتفعيل برمز تستلمه من فريق التفعيل
           </p>
         </div>
 
@@ -88,7 +95,7 @@ export function Pricing() {
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                   <div className="gradient-accent px-4 py-1 rounded-full">
                     <span className="text-sm font-medium text-primary-foreground">
-                      الأكثر شعبية
+                      الأكثر توفيرا
                     </span>
                   </div>
                 </div>
@@ -140,8 +147,8 @@ export function Pricing() {
                 }`}
                 variant={plan.popular ? "default" : "outline"}
               >
-                <Link href={`/account/subscription?plan=${plan.id}`}>
-                  اشترك الآن
+                <Link href={`/activation-request?plan=${plan.id}`}>
+                  اطلب كود التفعيل
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
               </Button>
@@ -149,29 +156,28 @@ export function Pricing() {
           ))}
         </div>
 
-        {/* Payment Methods */}
-        <div className="mt-12 text-center">
-          <p className="text-sm text-muted-foreground mb-4">طرق الدفع المتاحة</p>
-          <div className="flex items-center justify-center gap-6">
-            <div className="glass rounded-lg px-4 py-2 flex items-center gap-2">
-              <div className="h-6 w-10 bg-gradient-to-r from-blue-600 to-blue-800 rounded flex items-center justify-center">
-                <span className="text-[8px] font-bold text-white">VISA</span>
+        {/* How activation works */}
+        <div className="mt-12 max-w-4xl mx-auto">
+          <p className="text-center text-sm text-muted-foreground mb-4">طريقة التفعيل</p>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {steps.map((step, index) => (
+              <div key={index} className="glass rounded-xl p-4 flex items-start gap-3">
+                <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                  <step.icon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">{index + 1}. {step.title}</p>
+                  <p className="text-sm text-muted-foreground">{step.text}</p>
+                </div>
               </div>
-              <span className="text-sm text-muted-foreground">Visa</span>
-            </div>
-            <div className="glass rounded-lg px-4 py-2 flex items-center gap-2">
-              <div className="h-6 w-10 bg-gradient-to-r from-red-500 to-orange-500 rounded flex items-center justify-center">
-                <span className="text-[6px] font-bold text-white">MasterCard</span>
-              </div>
-              <span className="text-sm text-muted-foreground">MasterCard</span>
-            </div>
-            <div className="glass rounded-lg px-4 py-2 flex items-center gap-2">
-              <div className="h-6 w-10 bg-secondary rounded flex items-center justify-center">
-                <span className="text-[8px] font-bold text-primary">زين كاش</span>
-              </div>
-              <span className="text-sm text-muted-foreground">Zain Cash</span>
-            </div>
+            ))}
           </div>
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            انتهى شهر الأستاذ ذكي وأقسامك ما زالت مفعلة؟{" "}
+            <Link href="/activation-request?plan=ai_refill" className="text-primary hover:underline">
+              اطلب كود إعادة تعبئة الذكاء الاصطناعي
+            </Link>
+          </p>
         </div>
       </div>
     </section>

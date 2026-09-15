@@ -1,4 +1,4 @@
-import { Target, Lightbulb, Users, GraduationCap } from "lucide-react"
+import { Target, Lightbulb, Users, NotebookPen } from "lucide-react"
 
 export function About() {
   return (
@@ -15,15 +15,15 @@ export function About() {
                     <Target className="h-6 w-6 text-primary-foreground" />
                   </div>
                   <h4 className="font-semibold text-foreground mb-1">رؤيتنا</h4>
-                  <p className="text-xs text-muted-foreground">تحويل التعليم العراقي</p>
+                  <p className="text-xs text-muted-foreground">دراسة أسهل لكل طالب</p>
                 </div>
 
                 <div className="glass rounded-xl p-4">
                   <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center mb-3">
                     <Lightbulb className="h-6 w-6 text-primary" />
                   </div>
-                  <h4 className="font-semibold text-foreground mb-1">الابتكار</h4>
-                  <p className="text-xs text-muted-foreground">تقنية AI متطورة</p>
+                  <h4 className="font-semibold text-foreground mb-1">الذكاء الاصطناعي</h4>
+                  <p className="text-xs text-muted-foreground">أستاذ يفهم منهجك</p>
                 </div>
 
                 <div className="glass rounded-xl p-4">
@@ -31,33 +31,33 @@ export function About() {
                     <Users className="h-6 w-6 text-primary" />
                   </div>
                   <h4 className="font-semibold text-foreground mb-1">المجتمع</h4>
-                  <p className="text-xs text-muted-foreground">دعم الطلاب</p>
+                  <p className="text-xs text-muted-foreground">مكتبة يشارك فيها الطلاب</p>
                 </div>
 
                 <div className="glass rounded-xl p-4">
                   <div className="h-12 w-12 rounded-lg gradient-accent flex items-center justify-center mb-3">
-                    <GraduationCap className="h-6 w-6 text-primary-foreground" />
+                    <NotebookPen className="h-6 w-6 text-primary-foreground" />
                   </div>
-                  <h4 className="font-semibold text-foreground mb-1">التفوق</h4>
-                  <p className="text-xs text-muted-foreground">نجاح مضمون</p>
+                  <h4 className="font-semibold text-foreground mb-1">التنظيم</h4>
+                  <p className="text-xs text-muted-foreground">دفاتر وتقويم وجدول</p>
                 </div>
               </div>
 
               {/* Stats Bar */}
               <div className="mt-6 glass rounded-xl p-4 flex items-center justify-around">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary">95%</p>
-                  <p className="text-xs text-muted-foreground">نسبة النجاح</p>
-                </div>
-                <div className="h-8 w-px bg-border" />
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-primary">+50K</p>
-                  <p className="text-xs text-muted-foreground">سؤال محلول</p>
-                </div>
-                <div className="h-8 w-px bg-border" />
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-primary">+15</p>
+                  <p className="text-2xl font-bold text-primary">11</p>
                   <p className="text-xs text-muted-foreground">مادة دراسية</p>
+                </div>
+                <div className="h-8 w-px bg-border" />
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary">2</p>
+                  <p className="text-xs text-muted-foreground">علمي وأدبي</p>
+                </div>
+                <div className="h-8 w-px bg-border" />
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary">24/7</p>
+                  <p className="text-xs text-muted-foreground">الأستاذ ذكي</p>
                 </div>
               </div>
             </div>
@@ -74,25 +74,25 @@ export function About() {
             </div>
 
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-balance">
-              <span className="text-foreground">نحن نُحدث ثورة في</span>
+              <span className="text-foreground">منصة واحدة</span>
               <br />
-              <span className="text-primary">التعليم العراقي</span>
+              <span className="text-primary">لكل ما يحتاجه طالب السادس</span>
             </h2>
 
             <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-              &quot;سادس ألترا&quot; هي منصة تعليمية ذكية مصممة خصيصاً لطلاب السادس الإعدادي في العراق. نستخدم أحدث تقنيات الذكاء الاصطناعي لتوفير تجربة تعليمية شخصية وفعالة.
+              &quot;سادس ألترا&quot; منصة تعليمية مصممة خصيصا لطلاب السادس الإعدادي في العراق بفرعيه العلمي والأدبي. تجمع لك الأستاذ ذكي والمكتبات والمحاضرات والأسئلة الوزارية وأدوات تنظيم الدراسة في مكان واحد، على الموقع والتطبيق.
             </p>
 
             <p className="text-muted-foreground mb-8 leading-relaxed">
-              رؤيتنا هي جعل التعليم عالي الجودة متاحاً لكل طالب عراقي، بغض النظر عن موقعه الجغرافي أو ظروفه الاقتصادية. نؤمن بأن كل طالب يستحق معلماً شخصياً ذكياً يفهم احتياجاته ويساعده على التفوق.
+              نؤمن بأن كل طالب يستحق أستاذا يجيب سؤاله في أي وقت، ومصادر مرتبة حسب مادته وفرعه، وأدوات تساعده ينظم وقته حتى يوم الامتحان الوزاري.
             </p>
 
             <ul className="space-y-3">
               {[
-                "منهج عراقي معتمد ومحدث",
-                "شرح تفاعلي بالذكاء الاصطناعي",
-                "متابعة مستمرة لتقدم الطالب",
-                "دعم فني على مدار الساعة"
+                "شرح بالنص والصوت وحل المسائل بالصورة",
+                "مكتبات مرتبة حسب المادة والفرع",
+                "دفاتر رقمية للواجبات مع تصدير PDF",
+                "تقويم السادس وجدول أسبوعي للمذاكرة",
               ].map((item, index) => (
                 <li key={index} className="flex items-center gap-3">
                   <div className="h-2 w-2 rounded-full gradient-accent" />

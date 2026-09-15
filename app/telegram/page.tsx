@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, Send, Loader2, Plus, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useReactions, ReactionBar, OfficialBadge } from '@/components/reactions';
 
 interface Channel {
   id: string;
@@ -20,6 +21,7 @@ interface Channel {
 export default function TelegramPage() {
   const { user } = useAuth();
   const [rows, setRows] = useState<Channel[]>([]);
+  const { counts: rx, toggle: toggleRx } = useReactions('telegram', rows.map((c) => c.id));
   const [loading, setLoading] = useState(true);
 
   // Member submission form.
@@ -123,7 +125,7 @@ export default function TelegramPage() {
             {approved.length === 0 ? (
               <div className="py-8 text-center text-muted">لا توجد قنوات بعد.</div>
             ) : (
-              approved.map((c) => <ChannelRow key={c.id} c={c} />)
+              approved.map((c) => <ChannelRow key={c.id} c={c} reactions={<ReactionBar itemId={c.id} counts={rx[c.id]} onToggle={toggleRx} compact />} />)
             )}
             {myPending.map((c) => (
               <div key={c.id} className="opacity-70">
@@ -199,7 +201,7 @@ export default function TelegramPage() {
   );
 }
 
-function ChannelRow({ c, pending }: { c: Channel; pending?: boolean }) {
+function ChannelRow({ c, pending, reactions }: { c: Channel; pending?: boolean; reactions?: React.ReactNode }) {
   return (
     <a
       href={pending ? undefined : c.url}
@@ -213,10 +215,15 @@ function ChannelRow({ c, pending }: { c: Channel; pending?: boolean }) {
         <Send className="w-5 h-5 text-primary" />
       </div>
       <div className="flex-1 min-w-0">
-        <h3 className="font-bold truncate">{c.title}</h3>
+        <h3 className="font-bold truncate flex items-center gap-2">{c.title} {c.owner_type === 'platform' && <OfficialBadge />}</h3>
         <p className="text-xs text-muted">
           {c.owner_type === 'platform' ? 'قناة المنصة' : c.owner_name || 'قناة أستاذ'}
         </p>
+        {reactions && (
+          <div className="mt-1.5" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+            {reactions}
+          </div>
+        )}
       </div>
       {pending ? (
         <span className="text-xs text-warning whitespace-nowrap">قيد المراجعة</span>

@@ -18,6 +18,7 @@
 //      synthetic password.
 
 import { NextRequest } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import {
   adminClient,
   hashCode,
@@ -95,6 +96,9 @@ export async function POST(req: NextRequest) {
   // listUsers doesn't filter by email reliably across all SDK versions; we
   // page through. For low-volume sign-ins this is fine.
   let userId: string | null = null;
+  // حساب حقيقي (إيميل/جوجل) رُبط به هذا الرقم لاحقاً — يُميَّز عن حساب
+  // الهاتف الاصطناعي، لأننا لا نلمس كلمة مرور الحساب الحقيقي.
+  let linkedRealEmail: string | null = null;
   let page = 1;
   while (page < 50) {
     const { data, error } = await supa.auth.admin.listUsers({ page, perPage: 200 });
@@ -102,13 +106,44 @@ export async function POST(req: NextRequest) {
       console.error('listUsers error', error);
       return bad('خطأ في البحث عن المستخدم', 500);
     }
-    const hit = data.users.find((u) => u.email === email);
+    const hit = data.users.find((u) => u.email === email || u.phone === phone);
     if (hit) {
       userId = hit.id;
+      if (hit.email && hit.email !== email) linkedRealEmail = hit.email;
       break;
     }
     if (data.users.length < 200) break;
     page += 1;
+  }
+
+  // حساب مربوط: أصدر جلسة عبر رابط سحري يُستبدل فوراً بجلسة، بلا كلمة مرور.
+  if (userId && linkedRealEmail) {
+    const linkRes = await supa.auth.admin.generateLink({ type: 'magiclink', email: linkedRealEmail });
+    const hashed = linkRes.data?.properties?.hashed_token;
+    if (linkRes.error || !hashed) {
+      console.error('generateLink failed', linkRes.error);
+      return bad('فشل إنشاء الجلسة', 500);
+    }
+    const anon = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: sess, error: sessErr } = await anon.auth.verifyOtp({
+      token_hash: hashed,
+      type: 'magiclink',
+    });
+    if (sessErr || !sess.session) {
+      console.error('verifyOtp failed', sessErr);
+      return bad('فشل إنشاء الجلسة', 500);
+    }
+    return new Response(
+      JSON.stringify({
+        user_id: userId,
+        access_token: sess.session.access_token,
+        refresh_token: sess.session.refresh_token,
+        expires_in: sess.session.expires_in,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
   }
 
   if (!userId) {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, MapPin, Phone, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useReactions, ReactionBar, OfficialBadge } from '@/components/reactions';
 
 interface Institute {
   id: string;
@@ -143,6 +144,7 @@ function InstitutesMap({ institutes }: { institutes: Institute[] }) {
 
 export default function InstitutesPage() {
   const [institutes, setInstitutes] = useState<Institute[]>([]);
+  const { counts: rx, toggle: toggleRx } = useReactions('institute', institutes.map((i) => i.id));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -209,7 +211,7 @@ export default function InstitutesPage() {
                       <MapPin className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold mb-1">{i.name}</h3>
+                      <h3 className="font-bold mb-1 flex items-center gap-2 flex-wrap">{i.name} <OfficialBadge /></h3>
                       {(i.governorate || i.area) && (
                         <p className="text-sm text-muted">
                           {[i.governorate, i.area].filter(Boolean).join(' - ')}
@@ -227,6 +229,9 @@ export default function InstitutesPage() {
                           <Phone className="w-3.5 h-3.5" /> {i.phone}
                         </a>
                       )}
+                      <div className="mt-3">
+                        <ReactionBar itemId={i.id} counts={rx[i.id]} onToggle={toggleRx} compact />
+                      </div>
                     </div>
                     {typeof i.lat === 'number' && typeof i.lng === 'number' && (
                       <a

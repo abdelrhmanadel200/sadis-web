@@ -29,6 +29,7 @@ import {
   Check,
   AlertCircle,
   Palette,
+  PenTool,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
@@ -39,6 +40,7 @@ import {
   type WorkbookPage,
 } from './extensions';
 import styles from './workbook.module.css';
+import DrawingEditorModal, { type DrawingValue } from './DrawingEditorModal';
 
 export interface WorkbookRow {
   id: string;
@@ -85,6 +87,12 @@ export default function WorkbookEditor({
   const [exportProgress, setExportProgress] = useState('');
   const [uploading, setUploading] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
+  // نافذة الرسم: جديد (لوحة بيضاء) أو فوق صورة محددة تُستبدل بالرسم.
+  const [drawing, setDrawing] = useState<{
+    initial: DrawingValue;
+    replace: { from: number; to: number } | null;
+    fit: boolean;
+  } | null>(null);
 
   // مراجع تحمل آخر قيمة داخل مؤقّت الحفظ (لا تعتمد على قيم الـ render القديمة).
   const pagesRef = useRef(pages);
@@ -290,6 +298,54 @@ export default function WorkbookEditor({
     }
     editor.commands.setYoutubeVideo({ src: clean });
   }, [editor]);
+
+  // صورة خلفية للرسم: نفس قيود صور الدفتر، وتُعيد الرابط بدل إدراجه.
+  const uploadForDrawing = useCallback(
+    async (file: File): Promise<string | null> => {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type) || file.size > MAX_IMAGE_BYTES) return null;
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+      const path = `${workbook.user_id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('workbooks')
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) return null;
+      return supabase.storage.from('workbooks').getPublicUrl(path).data.publicUrl;
+    },
+    [workbook.user_id],
+  );
+
+  /**
+   * زر الرسم: إن كانت صورة محددة في الدفتر يُفتح المحرر فوقها ويحلّ الرسم
+   * محلها (الكتابة على الصور)، وإلا تُفتح لوحة بيضاء.
+   */
+  const openDrawing = useCallback(() => {
+    if (!editor) return;
+    if (editor.isActive('image')) {
+      const src = editor.getAttributes('image').src as string | undefined;
+      const { from, to } = editor.state.selection;
+      setDrawing({
+        initial: { bg: src && /^https:\/\//i.test(src) ? src : null, width: 720, height: 405, shapes: [] },
+        replace: { from, to },
+        fit: true,
+      });
+      return;
+    }
+    setDrawing({ initial: { bg: null, width: 720, height: 405, shapes: [] }, replace: null, fit: false });
+  }, [editor]);
+
+  const saveDrawing = useCallback(
+    (v: DrawingValue) => {
+      if (!editor || !drawing) return;
+      const node = { type: 'drawing', attrs: { ...v } };
+      if (drawing.replace) {
+        editor.chain().focus().insertContentAt(drawing.replace, node).run();
+      } else {
+        editor.chain().focus().insertContent(node).run();
+      }
+      setDrawing(null);
+    },
+    [editor, drawing],
+  );
 
   /** سؤال/جواب: نفس النوع يلغي التحديد، ونوع آخر يبدّله بدل أن يعشّش صندوقين. */
   const toggleQa = useCallback(
@@ -528,6 +584,10 @@ export default function WorkbookEditor({
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
         </ToolBtn>
         <ToolBtn onClick={embedYoutube} label="فيديو يوتيوب"><YoutubeIcon className="w-4 h-4" /></ToolBtn>
+        <ToolBtn onClick={openDrawing} label="رسم (اختر صورة في الدفتر للرسم عليها)">
+          <PenTool className="w-4 h-4" />
+          <span className="text-xs font-bold ms-1">رسم</span>
+        </ToolBtn>
         <Sep />
         <ToolBtn onClick={() => editor?.chain().focus().undo().run()} label="تراجع"><Undo2 className="w-4 h-4" /></ToolBtn>
         <ToolBtn onClick={() => editor?.chain().focus().redo().run()} label="إعادة"><Redo2 className="w-4 h-4" /></ToolBtn>
@@ -601,6 +661,16 @@ export default function WorkbookEditor({
           </button>
         </div>
       </div>
+
+      {drawing && (
+        <DrawingEditorModal
+          initial={drawing.initial}
+          fitToBackground={drawing.fit}
+          onPickBackground={uploadForDrawing}
+          onCancel={() => setDrawing(null)}
+          onSave={saveDrawing}
+        />
+      )}
     </div>
   );
 }

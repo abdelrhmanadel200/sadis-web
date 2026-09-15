@@ -23,6 +23,7 @@ import {
 } from '@/lib/saved-items';
 import { DEFAULT_SUBJECTS } from '@/lib/subjects';
 import { ReportButton } from '@/components/ReportButton';
+import { useReactions, ReactionBar, OfficialBadge } from '@/components/reactions';
 
 interface Lecture {
   id: string;
@@ -40,6 +41,7 @@ function LecturesPageInner() {
   const { user } = useAuth();
   const router = useRouter();
   const [lectures, setLectures] = useState<Lecture[]>([]);
+  const { counts: rx, toggle: toggleRx } = useReactions('lecture', lectures.map((l) => l.id));
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
@@ -183,6 +185,7 @@ function LecturesPageInner() {
                 isSaved={saved.has(l.id)}
                 onOpen={() => setOpenLecture(l)}
                 onToggleSave={() => handleToggleSave(l.id)}
+                reactions={<ReactionBar itemId={l.id} counts={rx[l.id]} onToggle={toggleRx} compact />}
               />
             ))}
           </div>
@@ -228,11 +231,13 @@ function LectureCard({
   isSaved,
   onOpen,
   onToggleSave,
+  reactions,
 }: {
   lecture: Lecture;
   isSaved: boolean;
   onOpen: () => void;
   onToggleSave: () => void;
+  reactions?: React.ReactNode;
 }) {
   const thumb = lecture.thumbnail_url || youtubeThumb(lecture.video_url) || '';
   return (
@@ -273,7 +278,8 @@ function LectureCard({
           ) : (
             <span />
           )}
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1.5">
+            {reactions}
             <ReportButton kind="lecture" itemId={lecture.id} />
             <button
               onClick={onToggleSave}

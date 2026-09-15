@@ -17,6 +17,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { fetchSavedIds, toggleSave } from '@/lib/saved-items';
 import { DEFAULT_SUBJECTS } from '@/lib/subjects';
 import { ReportButton } from '@/components/ReportButton';
+import { useReactions, ReactionBar, OfficialBadge } from '@/components/reactions';
 
 interface Book {
   id: string;
@@ -43,6 +44,7 @@ function BooksPageInner() {
   const { user } = useAuth();
   const router = useRouter();
   const [books, setBooks] = useState<Book[]>([]);
+  const { counts: rx, toggle: toggleRx } = useReactions('book', books.map((b) => b.id));
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
@@ -189,6 +191,7 @@ function BooksPageInner() {
                 book={b}
                 isSaved={saved.has(b.id)}
                 onToggleSave={() => handleToggleSave(b.id)}
+                reactions={<ReactionBar itemId={b.id} counts={rx[b.id]} onToggle={toggleRx} compact />}
               />
             ))}
           </div>
@@ -225,10 +228,12 @@ function BookCard({
   book,
   isSaved,
   onToggleSave,
+  reactions,
 }: {
   book: Book;
   isSaved: boolean;
   onToggleSave: () => void;
+  reactions?: React.ReactNode;
 }) {
   const Icon = book.format === 'video' ? BookOpen : FileText;
   return (
@@ -253,6 +258,7 @@ function BookCard({
           <ExternalLink className="w-3 h-3" />
           فتح
         </div>
+        <OfficialBadge className="absolute top-2 end-2" />
       </a>
       <div className="p-3 flex-1 flex flex-col">
         <h3 className="font-cairo font-bold text-sm line-clamp-2 mb-1">
@@ -261,6 +267,7 @@ function BookCard({
         {book.author && (
           <p className="text-xs text-muted line-clamp-1 mb-2">{book.author}</p>
         )}
+        {reactions && <div className="mt-1">{reactions}</div>}
         <div className="mt-auto flex items-center justify-between pt-2">
           <span className="text-[11px] text-muted uppercase">
             {book.format ?? 'pdf'}

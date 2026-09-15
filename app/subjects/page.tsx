@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_SUBJECTS } from '@/lib/subjects';
+import BranchGate, { useBranch, subjectVisibleFor } from '@/components/BranchGate';
 import type { Subject } from '@/lib/types';
 import {
   Calculator,
@@ -35,6 +36,9 @@ const ICONS: Record<string, React.ReactNode> = {
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<Subject[]>(DEFAULT_SUBJECTS);
+  const { branch } = useBranch();
+  // مواد فرع الطالب فقط + المواد المشتركة.
+  const visibleSubjects = subjects.filter((s) => subjectVisibleFor(s.branch, branch));
 
   useEffect(() => {
     (async () => {
@@ -48,16 +52,20 @@ export default function SubjectsPage() {
 
   return (
     <AppShell>
+      <BranchGate />
       <div className="p-5 md:p-8 max-w-5xl mx-auto">
         <header className="mb-8">
           <h1 className="font-cairo font-extrabold text-3xl md:text-4xl mb-2">
             المواد الدراسية
           </h1>
-          <p className="text-muted">اختر المادة وابدأ محادثة مع الأستاذ ذكي</p>
+          <p className="text-muted">
+            اختر المادة وابدأ محادثة مع الأستاذ ذكي
+            <span className="text-xs"> · تعرض مواد {branch === 'literary' ? 'الفرع الأدبي' : 'الفرع العلمي'}</span>
+          </p>
         </header>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {subjects.map((s) => (
+          {visibleSubjects.map((s) => (
             <Link
               key={s.id}
               href={`/chat/${s.id}`}

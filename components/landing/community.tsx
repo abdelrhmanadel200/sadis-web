@@ -2,54 +2,41 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Trophy, BookOpen, Users, Heart, Star, ThumbsUp } from "lucide-react";
+import {
+  MessageSquare,
+  BookOpen,
+  ClipboardList,
+  Users,
+  Upload,
+  ShieldCheck,
+  ThumbsUp,
+  ThumbsDown,
+  BadgeCheck,
+  FileText,
+} from "lucide-react";
 
 const features = [
   {
     icon: MessageSquare,
-    title: "منتديات النقاش",
-    description: "ناقش المواضيع الدراسية مع زملائك واحصل على إجابات فورية",
-  },
-  {
-    icon: Trophy,
-    title: "قصص نجاح الطلاب",
-    description: "استلهم من تجارب الطلاب المتفوقين وتعلم من أساليبهم",
+    title: "المنتدى",
+    description: "ناقش المواضيع الدراسية واسأل زملاءك، ودخول المنتدى متاح لكل عضو مسجل بدون اشتراك.",
   },
   {
     icon: BookOpen,
-    title: "موارد دراسية مشتركة",
-    description: "شارك ملاحظاتك وملخصاتك واستفد من مشاركات الآخرين",
+    title: "مكتبة سادس",
+    description: "شارك ملازمك وملخصاتك مع بقية الطلاب، وتفاعل مع ملفاتهم بالإعجاب.",
+  },
+  {
+    icon: ClipboardList,
+    title: "مناهج الأسئلة الوزارية",
+    description: "أسئلة وزارية يرفعها فريق سادس ألترا والأعضاء، مرتبة حسب المادة.",
   },
 ];
 
-const mockComments = [
-  {
-    name: "أحمد محمد",
-    avatar: "أ",
-    comment: "التطبيق ساعدني كثيراً في فهم الرياضيات!",
-    likes: 24,
-    time: "منذ ساعتين",
-  },
-  {
-    name: "زهراء علي",
-    avatar: "ز",
-    comment: "أفضل منصة للدراسة، شكراً سادس ألترا",
-    likes: 18,
-    time: "منذ 3 ساعات",
-  },
-  {
-    name: "محمد حسين",
-    avatar: "م",
-    comment: "حصلت على درجة كاملة في الامتحان بفضلكم",
-    likes: 42,
-    time: "منذ 5 ساعات",
-  },
-];
-
-const stats = [
-  { value: "15,000+", label: "طالب نشط" },
-  { value: "50,000+", label: "سؤال تمت الإجابة عليه" },
-  { value: "1,200+", label: "ملخص مشترك" },
+const steps = [
+  { icon: Upload, title: "ارفع ملفك", text: "مع العنوان والأستاذ والمادة وصورة غلاف" },
+  { icon: ShieldCheck, title: "تراجعه الإدارة", text: "حتى تبقى المكتبة نظيفة من المحتوى المخالف" },
+  { icon: Users, title: "يظهر للطلاب", text: "يفتحونه بضغطة على الغلاف ويتفاعلون معه" },
 ];
 
 export function Community() {
@@ -69,19 +56,19 @@ export function Community() {
             <span className="text-cyan-400 text-sm font-medium">مجتمع سادس ألترا</span>
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-balance">
-            انضم إلى أكبر مجتمع لطلاب{" "}
+            ادرس مع زملائك من{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-l from-cyan-400 to-teal-400">
-              السادس الإعدادي
+              كل أنحاء العراق
             </span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-pretty">
-            تبادل الملاحظات، شارك التجارب، واحصل على التحفيز مع آلاف الطلاب في جميع أنحاء العراق
+            تبادل الملفات والملاحظات، اسأل في المنتدى، وتدرب على الأسئلة الوزارية مع طلاب السادس الإعدادي
           </p>
         </div>
 
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left: Features */}
+          {/* Features */}
           <div className="space-y-6">
             {features.map((feature, index) => (
               <div
@@ -93,118 +80,66 @@ export function Community() {
                     <feature.icon className="w-6 h-6 text-cyan-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2 text-foreground">
-                      {feature.title}
-                    </h3>
+                    <h3 className="text-xl font-semibold mb-2 text-foreground">{feature.title}</h3>
                     <p className="text-muted-foreground">{feature.description}</p>
                   </div>
                 </div>
               </div>
             ))}
-
-            {/* Stats Row */}
-            <div className="grid grid-cols-3 gap-4 pt-4">
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-l from-cyan-400 to-teal-400">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* Right: Social Proof Widget */}
+          {/* How sharing works */}
           <div className="relative">
-            {/* Glow Effect */}
             <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/20 via-teal-500/20 to-cyan-500/20 rounded-3xl blur-2xl opacity-50" />
-            
-            {/* Widget Container */}
+
             <div className="relative rounded-2xl bg-slate-900/80 border border-white/10 overflow-hidden backdrop-blur-xl">
-              {/* Widget Header */}
               <div className="p-4 border-b border-white/10 bg-white/5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse" />
-                    <span className="text-sm font-medium text-foreground">المحادثات النشطة</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <span className="w-2 h-2 rounded-full bg-green-400" />
-                    <span>1,247 متصل الآن</span>
-                  </div>
-                </div>
+                <span className="text-sm font-medium text-foreground">كيف تشارك في مكتبة سادس</span>
               </div>
 
-              {/* Comments List */}
-              <div className="p-4 space-y-4">
-                {mockComments.map((comment, index) => (
-                  <div
-                    key={index}
-                    className="p-4 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Avatar */}
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        {comment.avatar}
+              <div className="p-4 space-y-3">
+                {steps.map((step, index) => (
+                  <div key={index} className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/5">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center text-white flex-shrink-0">
+                      <step.icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-foreground">
+                        {index + 1}. {step.title}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-medium text-foreground">{comment.name}</span>
-                          <span className="text-xs text-muted-foreground">{comment.time}</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">{comment.comment}</p>
-                        <div className="flex items-center gap-4">
-                          <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-cyan-400 transition-colors">
-                            <Heart className="w-3.5 h-3.5" />
-                            <span>{comment.likes}</span>
-                          </button>
-                          <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-cyan-400 transition-colors">
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            <span>رد</span>
-                          </button>
-                        </div>
-                      </div>
+                      <p className="text-sm text-muted-foreground">{step.text}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Widget Footer */}
+              {/* Example card */}
               <div className="p-4 border-t border-white/10 bg-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-2 rtl:space-x-reverse">
-                    {["س", "ع", "ن", "ر"].map((letter, i) => (
-                      <div
-                        key={i}
-                        className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/80 to-teal-500/80 border-2 border-slate-900 flex items-center justify-center text-white text-xs font-medium"
-                      >
-                        {letter}
-                      </div>
-                    ))}
-                    <div className="w-8 h-8 rounded-full bg-slate-700 border-2 border-slate-900 flex items-center justify-center text-white text-xs">
-                      +99
+                <p className="text-xs text-muted-foreground mb-2">مثال على بطاقة ملف:</p>
+                <div className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
+                  <div className="h-14 w-11 rounded-md bg-gradient-to-br from-cyan-500/30 to-teal-500/20 flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-cyan-300" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground truncate">ملزمة الفيزياء</span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-sky-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <BadgeCheck className="h-3 w-3" /> رسمي
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1"><ThumbsUp className="h-3.5 w-3.5" /> إعجاب</span>
+                      <span className="inline-flex items-center gap-1"><ThumbsDown className="h-3.5 w-3.5" /> عدم إعجاب</span>
                     </div>
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    انضم إليهم الآن
-                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Floating Elements */}
             <div className="absolute -top-4 -right-4 p-3 rounded-xl bg-slate-900/90 border border-white/10 backdrop-blur-xl shadow-xl">
               <div className="flex items-center gap-2">
-                <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                <span className="text-sm font-medium">4.9/5</span>
-              </div>
-            </div>
-
-            <div className="absolute -bottom-4 -left-4 p-3 rounded-xl bg-slate-900/90 border border-white/10 backdrop-blur-xl shadow-xl">
-              <div className="flex items-center gap-2">
-                <ThumbsUp className="w-5 h-5 text-cyan-400" />
-                <span className="text-sm font-medium">98% راضون</span>
+                <BadgeCheck className="w-5 h-5 text-sky-400" />
+                <span className="text-sm font-medium">ملفات رسمية من الفريق</span>
               </div>
             </div>
           </div>
@@ -223,7 +158,7 @@ export function Community() {
             </Link>
           </Button>
           <p className="text-sm text-muted-foreground mt-4">
-            مجاناً - لا يتطلب بطاقة ائتمان
+            التسجيل مجاني ودخول المنتدى بدون اشتراك
           </p>
         </div>
       </div>

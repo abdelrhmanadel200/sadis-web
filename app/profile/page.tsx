@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import type { Profile } from '@/lib/types';
+import { ContactSection, PasswordSection, SubscriptionSection } from '@/components/account/AccountSections';
 import {
   User,
   Phone,
@@ -17,7 +18,6 @@ import {
   LogOut,
   Save,
   BookOpen,
-  ShieldCheck,
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -66,7 +66,7 @@ export default function ProfilePage() {
     setMsg(null);
     const { error } = await supabase
       .from('profiles')
-      .update({ name, city, branch })
+      .update({ name, city, branch, branch_confirmed: true })
       .eq('id', user.id);
     if (error) setMsg('حدث خطأ أثناء الحفظ');
     else setMsg('تم الحفظ بنجاح');
@@ -199,39 +199,9 @@ export default function ProfilePage() {
               </button>
             </section>
 
-            <section className="card border border-dark-border rounded-2xl p-5">
-              <h2 className="font-cairo font-bold text-lg mb-4 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-primary-light" />
-                الاشتراك
-              </h2>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold capitalize">
-                    {profile?.subscription_tier ?? 'free'}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {profile?.subscription_expires_at
-                      ? `ينتهي: ${new Date(
-                          profile.subscription_expires_at as any
-                        ).toLocaleDateString('ar-IQ')}`
-                      : 'خطة مجانية'}
-                  </p>
-                </div>
-                <span className="text-xs bg-primary/20 text-primary-light px-3 py-1 rounded-full">
-                  {profile?.subscription_tier === 'premium'
-                    ? 'مميّز'
-                    : profile?.subscription_tier === 'basic'
-                    ? 'أساسي'
-                    : 'مجاني'}
-                </span>
-              </div>
-              <Link
-                href="/account/subscription"
-                className="mt-4 inline-flex items-center justify-center w-full gap-2 rounded-xl px-4 py-2.5 text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 transition"
-              >
-                إدارة الاشتراك / اشتراك جديد
-              </Link>
-            </section>
+            {user && <ContactSection user={user} profilePhone={(profile?.phone as string | null) ?? null} />}
+            {user && <PasswordSection user={user} />}
+            {user && <SubscriptionSection user={user} />}
 
             <button
               onClick={handleLogout}

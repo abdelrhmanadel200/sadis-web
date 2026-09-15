@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Loader2, Play, X, ListVideo, User as UserIcon, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_SUBJECTS } from '@/lib/subjects';
+import { useReactions, ReactionBar, OfficialBadge } from '@/components/reactions';
 
 interface Playlist {
   id: string;
@@ -25,6 +26,7 @@ function playlistId(url: string): string | null {
 
 function PlaylistsInner() {
   const [rows, setRows] = useState<Playlist[]>([]);
+  const { counts: rx, toggle: toggleRx } = useReactions('playlist', rows.map((p) => p.id));
   const [loading, setLoading] = useState(true);
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -117,7 +119,7 @@ function PlaylistsInner() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {visible.map((p) => (
-              <PlaylistCard key={p.id} p={p} onOpen={() => setOpen(p)} />
+              <PlaylistCard key={p.id} p={p} onOpen={() => setOpen(p)} reactions={<ReactionBar itemId={p.id} counts={rx[p.id]} onToggle={toggleRx} compact />} />
             ))}
           </div>
         )}
@@ -141,7 +143,7 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
   );
 }
 
-function PlaylistCard({ p, onOpen }: { p: Playlist; onOpen: () => void }) {
+function PlaylistCard({ p, onOpen, reactions }: { p: Playlist; onOpen: () => void; reactions?: React.ReactNode }) {
   return (
     <div className="card border border-dark-border rounded-2xl overflow-hidden flex flex-col group">
       <button onClick={onOpen} className="relative aspect-video bg-card/40 block">
@@ -170,6 +172,10 @@ function PlaylistCard({ p, onOpen }: { p: Playlist; onOpen: () => void }) {
             {p.teacher_name}
           </p>
         )}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <OfficialBadge />
+          {reactions}
+        </div>
       </div>
     </div>
   );

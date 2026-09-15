@@ -2,7 +2,9 @@
 import type { Subject } from './types';
 
 export const DEFAULT_SUBJECTS: Subject[] = [
-  { id: 'math', name_ar: 'الرياضيات', name_en: 'Mathematics', branch: 'both', color: '#1E66AA', icon: 'calculator', sort_order: 1 },
+  // الرياضيات مادتان: منهج العلمي يختلف عن منهج الأدبي.
+  { id: 'math', name_ar: 'الرياضيات (علمي)', name_en: 'Mathematics (Scientific)', branch: 'scientific', color: '#1E66AA', icon: 'calculator', sort_order: 1 },
+  { id: 'math_lit', name_ar: 'الرياضيات (أدبي)', name_en: 'Mathematics (Literary)', branch: 'literary', color: '#1E66AA', icon: 'calculator', sort_order: 1 },
   { id: 'physics', name_ar: 'الفيزياء', name_en: 'Physics', branch: 'scientific', color: '#AA1E72', icon: 'zap', sort_order: 2 },
   { id: 'chemistry', name_ar: 'الكيمياء', name_en: 'Chemistry', branch: 'scientific', color: '#1EAACC', icon: 'flask', sort_order: 3 },
   { id: 'biology', name_ar: 'الأحياء', name_en: 'Biology', branch: 'scientific', color: '#AA2C1E', icon: 'dna', sort_order: 4 },

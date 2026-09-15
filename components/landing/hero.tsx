@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Play, Sparkles, Zap, Brain } from "lucide-react"
+import { ArrowLeft, Play, Sparkles, Zap, Brain, Camera } from "lucide-react"
 
 export function Hero() {
   return (
@@ -20,7 +20,7 @@ export function Hero() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6">
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm text-muted-foreground">
-                مدعوم بتقنية GPT المتقدمة
+                منصة متكاملة لطلاب السادس الإعدادي
               </span>
             </div>
 
@@ -33,7 +33,7 @@ export function Hero() {
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-              مدعوم بنماذج GPT المتقدمة لحل مسائل الفيزياء والرياضيات وتلخيص المناهج الدراسية على مدار الساعة طوال أيام الأسبوع
+              الأستاذ ذكي يشرح لك المنهج بالنص والصوت ويحل مسائلك بالصورة، ومعه كل ما تحتاجه في مكان واحد: مكتبة أُلترا ومكتبة سادس، مناهج الأسئلة الوزارية، المحاضرات، حقيبة الدفاتر، وتقويم السادس.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -51,24 +51,24 @@ export function Hero() {
               >
                 <Link href="/chat">
                   <Play className="h-4 w-4" />
-                  جرب مجاناً
+                  جرب الأستاذ ذكي
                 </Link>
               </Button>
             </div>
 
-            {/* Stats */}
+            {/* Highlights */}
             <div className="flex flex-wrap gap-8 justify-center lg:justify-start mt-12">
               <div className="text-center">
-                <p className="text-3xl font-bold text-primary">+10,000</p>
-                <p className="text-sm text-muted-foreground">طالب مسجل</p>
+                <p className="text-3xl font-bold text-primary">11</p>
+                <p className="text-sm text-muted-foreground">مادة للعلمي والأدبي</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-bold text-primary">24/7</p>
-                <p className="text-sm text-muted-foreground">دعم متواصل</p>
+                <p className="text-sm text-muted-foreground">الأستاذ ذكي متاح</p>
               </div>
               <div className="text-center">
-                <p className="text-3xl font-bold text-primary">98%</p>
-                <p className="text-sm text-muted-foreground">نسبة الرضا</p>
+                <p className="text-3xl font-bold text-primary">+10</p>
+                <p className="text-sm text-muted-foreground">أقسام في منصة واحدة</p>
               </div>
             </div>
           </div>
@@ -83,8 +83,8 @@ export function Hero() {
                     <Brain className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">مساعد الذكاء الاصطناعي</p>
-                    <p className="text-xs text-muted-foreground">متصل الآن</p>
+                    <p className="font-semibold text-foreground">الأستاذ ذكي</p>
+                    <p className="text-xs text-muted-foreground">جاهز لسؤالك</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -134,14 +134,14 @@ export function Hero() {
             <div className="absolute -top-4 -right-4 glass-card rounded-xl p-3 animate-bounce">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-xs text-foreground">حل فوري</span>
+                <span className="text-xs text-foreground">شرح خطوة بخطوة</span>
               </div>
             </div>
 
             <div className="absolute -bottom-4 -left-4 glass-card rounded-xl p-3">
               <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <span className="text-xs text-foreground">+500 طالب نشط الآن</span>
+                <Camera className="h-4 w-4 text-primary" />
+                <span className="text-xs text-foreground">حل المسائل بالصورة</span>
               </div>
             </div>
           </div>

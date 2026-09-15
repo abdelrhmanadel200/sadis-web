@@ -1,32 +1,69 @@
-import { Sparkles, Camera, FileText, Clock } from "lucide-react"
+import {
+  Sparkles,
+  Camera,
+  Backpack,
+  BookMarked,
+  ClipboardList,
+  PlayCircle,
+  CalendarDays,
+  MapPin,
+} from "lucide-react"
 
 const features = [
   {
     icon: Sparkles,
-    title: "حلول فورية",
-    titleEn: "Instant Solutions",
-    description: "احصل على إجابات دقيقة ومفصلة لأسئلتك في ثوانٍ معدودة باستخدام تقنية الذكاء الاصطناعي المتقدمة",
+    title: "الأستاذ ذكي",
+    titleEn: "AI Tutor",
+    description: "اسأل بالنص أو بالصوت واحصل على شرح خطوة بخطوة يناسب منهج السادس الإعدادي، في أي وقت من اليوم.",
     gradient: true,
   },
   {
     icon: Camera,
     title: "حل بالصورة",
     titleEn: "Photo-to-Solve",
-    description: "التقط صورة لسؤالك واحصل على الحل الكامل مع شرح تفصيلي خطوة بخطوة",
+    description: "التقط صورة المسألة وارفعها للأستاذ ذكي، فيحلها لك ويشرح الخطوات بالتفصيل.",
     gradient: false,
   },
   {
-    icon: FileText,
-    title: "ملخصات ذكية",
-    titleEn: "Smart Summaries",
-    description: "ملخصات شاملة ومنظمة لجميع المواد الدراسية تساعدك على المراجعة السريعة والفعالة",
+    icon: Backpack,
+    title: "حقيبة الدفاتر",
+    titleEn: "Digital Workbooks",
+    description: "دفاتر رقمية بصفحات متعددة لأسئلتك وأجوبتك، مع الصور وفيديوهات يوتيوب والرسم والكتابة على الصور، وتصدير PDF.",
     gradient: false,
   },
   {
-    icon: Clock,
-    title: "متاح 24/7",
-    titleEn: "24/7 Availability",
-    description: "معلمك الذكي متاح على مدار الساعة طوال أيام الأسبوع، جاهز للإجابة على أسئلتك في أي وقت",
+    icon: BookMarked,
+    title: "مكتبة أُلترا ومكتبة سادس",
+    titleEn: "Libraries",
+    description: "كتب وملازم وملخصات مرتبة حسب المادة من فريق سادس ألترا، وملفات يشاركها الطلاب بعد مراجعة الإدارة.",
+    gradient: true,
+  },
+  {
+    icon: ClipboardList,
+    title: "مناهج الأسئلة الوزارية",
+    titleEn: "Ministry Exams",
+    description: "أسئلة وزارية مرتبة حسب المادة لتتدرب على نمط الامتحان الوزاري قبل موعده.",
+    gradient: true,
+  },
+  {
+    icon: PlayCircle,
+    title: "المحاضرات",
+    titleEn: "Lectures",
+    description: "محاضرات وقوائم تشغيل لأساتذة السادس الإعدادي مرتبة حسب المادة في مكان واحد.",
+    gradient: false,
+  },
+  {
+    icon: CalendarDays,
+    title: "تقويم السادس والجدول الأسبوعي",
+    titleEn: "Calendar & Schedule",
+    description: "تقويم السنة الدراسية بالعطل والمواعيد المهمة، وجدول أسبوعي تنظم به مذاكرتك وملاحظاتك.",
+    gradient: false,
+  },
+  {
+    icon: MapPin,
+    title: "المعاهد على الخريطة",
+    titleEn: "Institutes Map",
+    description: "اعثر على المعاهد القريبة منك على الخريطة مع رقم التواصل وزر الاتجاهات.",
     gradient: true,
   },
 ]
@@ -54,7 +91,7 @@ export function Features() {
           </h2>
 
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            نوفر لك مجموعة شاملة من الأدوات والمميزات المصممة خصيصاً لتحسين تجربتك التعليمية
+            كل أدوات السادس الإعدادي في منصة واحدة، على الموقع وتطبيق الأندرويد
           </p>
         </div>
 

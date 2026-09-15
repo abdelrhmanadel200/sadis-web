@@ -7,6 +7,7 @@ import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Drawing, DrawingWithView } from './DrawingNode';
 
 /**
  * كتلة "سؤال" أو "جواب" — الطالب يحدد بها أسئلته وأجوبته داخل الدفتر،
@@ -42,11 +43,8 @@ export const QaBlock = Node.create({
   },
 });
 
-/**
- * الامتدادات المشتركة بين المحرر وبين توليد HTML وقت التصدير — لا بد أن
- * تكون القائمة واحدة، وإلا خرج الـ PDF ناقصاً عن الشاشة.
- */
-export const workbookExtensions = [
+/** المشترك بين المحرر الحي وتوليد HTML للتصدير (عدا كتلة الرسم). */
+const baseExtensions = [
   StarterKit.configure({
     heading: { levels: [1, 2, 3] },
   }),
@@ -64,9 +62,16 @@ export const workbookExtensions = [
   QaBlock,
 ];
 
-/** امتدادات المحرر الحي = المشتركة + نص إرشادي (لا معنى له عند التصدير). */
+/**
+ * امتدادات توليد HTML وقت التصدير — لا بد أن تطابق المحرر في المخطط،
+ * وإلا خرج الـ PDF ناقصاً عن الشاشة. كتلة الرسم هنا بلا واجهة React.
+ */
+export const workbookExtensions = [...baseExtensions, Drawing];
+
+/** امتدادات المحرر الحي = نفس المخطط + واجهة الرسم + نص إرشادي. */
 export const editorExtensions = [
-  ...workbookExtensions,
+  ...baseExtensions,
+  DrawingWithView,
   Placeholder.configure({
     placeholder: 'اكتب سؤالك أو ملاحظتك هنا...',
   }),

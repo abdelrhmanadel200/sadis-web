@@ -375,7 +375,8 @@ function LibraryPageInner() {
                 onChange={(e) => setMetaSubject(e.target.value)}
                 className="input-field w-full rounded-xl px-4 py-2.5 outline-none focus:border-primary"
               >
-                <option value="math">الرياضيات</option>
+                <option value="math">الرياضيات (علمي)</option>
+                <option value="math_lit">الرياضيات (أدبي)</option>
                 <option value="physics">الفيزياء</option>
                 <option value="chemistry">الكيمياء</option>
                 <option value="biology">الأحياء</option>

@@ -17,6 +17,7 @@ interface HistoryMessage {
   content: string;
 }
 import { DEFAULT_SUBJECTS, getSubjectById } from '@/lib/subjects';
+import BranchGate, { useBranch, subjectVisibleFor } from '@/components/BranchGate';
 import type { ChatMessage as ChatMessageRow } from '@/lib/types';
 import ChatMessage from './ChatMessage';
 
@@ -41,6 +42,7 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const { branch } = useBranch();
 
   const sessionParam = searchParams.get('session');
   const [sessionId, setSessionId] = useState<string | null>(sessionParam);
@@ -419,6 +421,7 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
 
   return (
     <div className="flex flex-col h-full">
+      <BranchGate />
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-dark-border">
         <div className="relative" ref={subjectPickerRef}>
@@ -447,7 +450,7 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
               >
                 عام
               </button>
-              {DEFAULT_SUBJECTS.map((s) => (
+              {DEFAULT_SUBJECTS.filter((s) => subjectVisibleFor(s.branch, branch)).map((s) => (
                 <button
                   type="button"
                   key={s.id}

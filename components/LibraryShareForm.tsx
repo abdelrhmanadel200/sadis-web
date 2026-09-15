@@ -2,16 +2,20 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Upload, ExternalLink, Share2 } from 'lucide-react';
+import { Loader2, Upload, ExternalLink, Share2, ImagePlus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+// يطابق حدود مخزن library-covers وإلا رفضه السيرفر برسالة مبهمة.
+const MAX_COVER_BYTES = 5 * 1024 * 1024;
+const COVER_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 
 // نفس قائمتي المواد والصيَغ في نموذج "مكتبة أُلترا" بلوحة التحكم — طلب العميل
 // أن يكون نموذج مشاركة الطلاب بنفس الترتيب والحقول.
 const SUBJECTS = [
-  { id: 'math', label: 'الرياضيات' },
+  { id: 'math', label: 'الرياضيات (علمي)' },
+  { id: 'math_lit', label: 'الرياضيات (أدبي)' },
   { id: 'physics', label: 'الفيزياء' },
   { id: 'chemistry', label: 'الكيمياء' },
   { id: 'biology', label: 'الأحياء' },
@@ -37,9 +41,13 @@ const FORMATS = [
 export default function LibraryShareForm({
   user,
   onShared,
+  section = 'community',
+  sectionLabel = 'مكتبة سادس',
 }: {
   user: User;
   onShared: () => void;
+  section?: 'community' | 'ministry';
+  sectionLabel?: string;
 }) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -52,11 +60,49 @@ export default function LibraryShareForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // صورة الغلاف إجبارية لكل ملف (طلب العميل).
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+
+  const pickCover = (f: File) => {
+    setError(null);
+    if (!COVER_TYPES.includes(f.type)) {
+      setError('صورة الغلاف يجب أن تكون PNG أو JPG أو WEBP.');
+      return;
+    }
+    if (f.size > MAX_COVER_BYTES) {
+      setError('حجم صورة الغلاف أكبر من 5 ميجابايت.');
+      return;
+    }
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(f);
+    setCoverPreview(URL.createObjectURL(f));
+  };
+
+  const clearCover = () => {
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(null);
+    setCoverPreview(null);
+    if (coverInputRef.current) coverInputRef.current.value = '';
+  };
+
+  const uploadCover = async (): Promise<string> => {
+    if (!coverFile) throw new Error('صورة الغلاف إجبارية');
+    const ext = coverFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('library-covers')
+      .upload(path, coverFile, { contentType: coverFile.type, upsert: false });
+    if (upErr) throw upErr;
+    return supabase.storage.from('library-covers').getPublicUrl(path).data.publicUrl;
+  };
 
   const resetMeta = () => {
     setTitle('');
     setAuthor('');
     setLinkUrl('');
+    clearCover();
   };
 
   const shareFile = async (file: File) => {
@@ -64,6 +110,10 @@ export default function LibraryShareForm({
     setSuccess(null);
     if (!title.trim()) {
       setError('أدخل اسم الملف أولاً');
+      return;
+    }
+    if (!coverFile) {
+      setError('صورة الغلاف إجبارية، اختر صورة للملف قبل الرفع.');
       return;
     }
     if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -78,6 +128,7 @@ export default function LibraryShareForm({
         .from('user-library')
         .upload(path, file, { contentType: file.type || undefined, upsert: false });
       if (upErr) throw upErr;
+      const coverUrl = await uploadCover();
       const { error: insertErr } = await supabase.from('user_library_files').insert({
         user_id: user.id,
         title: title.trim().slice(0, 120),
@@ -88,10 +139,12 @@ export default function LibraryShareForm({
         file_size_bytes: file.size,
         mime_type: file.type || null,
         is_public: true,
+        cover_url: coverUrl,
+        section,
       });
       if (insertErr) throw insertErr;
       resetMeta();
-      setSuccess('تم استلام ملفك ✅ سيظهر في مكتبة سادس بعد موافقة الإدارة.');
+      setSuccess(`تم استلام ملفك ✅ سيظهر في ${sectionLabel} بعد موافقة الإدارة.`);
       onShared();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذّر رفع الملف، حاول مرة ثانية');
@@ -108,12 +161,17 @@ export default function LibraryShareForm({
       setError('أدخل اسم الملف أولاً');
       return;
     }
+    if (!coverFile) {
+      setError('صورة الغلاف إجبارية، اختر صورة للملف قبل الإضافة.');
+      return;
+    }
     if (!/^https?:\/\/.+/i.test(linkUrl.trim())) {
       setError('أدخل رابطاً صحيحاً يبدأ بـ http أو https');
       return;
     }
     setBusy(true);
     try {
+      const coverUrl = await uploadCover();
       const { error: insertErr } = await supabase.from('user_library_files').insert({
         user_id: user.id,
         title: title.trim().slice(0, 120),
@@ -122,10 +180,12 @@ export default function LibraryShareForm({
         format: format || 'link',
         external_url: linkUrl.trim(),
         is_public: true,
+        cover_url: coverUrl,
+        section,
       });
       if (insertErr) throw insertErr;
       resetMeta();
-      setSuccess('تم استلام الرابط ✅ سيظهر في مكتبة سادس بعد موافقة الإدارة.');
+      setSuccess(`تم استلام الرابط ✅ سيظهر في ${sectionLabel} بعد موافقة الإدارة.`);
       onShared();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذّر إضافة الرابط، حاول مرة ثانية');
@@ -138,7 +198,7 @@ export default function LibraryShareForm({
     <section className="card border border-dark-border rounded-2xl p-5 mb-8">
       <h2 className="font-bold text-lg mb-1 flex items-center gap-2">
         <Share2 className="w-5 h-5 text-primary-light" />
-        شارك ملفاً مع مكتبة سادس
+        شارك ملفاً مع {sectionLabel}
       </h2>
       <p className="text-sm text-muted mb-4">
         املأ معلومات الملف ثم ارفعه أو أضف رابطه — يظهر لبقية الطلاب بعد موافقة الإدارة.
@@ -188,6 +248,43 @@ export default function LibraryShareForm({
             ))}
           </select>
         </div>
+      </div>
+
+      {/* صورة الغلاف (إجبارية) */}
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-muted mb-1">
+          صورة الغلاف <span className="text-red-400">*</span>
+        </label>
+        <input
+          ref={coverInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) pickCover(f); }}
+        />
+        {coverPreview ? (
+          <div className="relative inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={coverPreview} alt="الغلاف" className="h-32 w-24 rounded-lg object-cover border border-dark-border" />
+            <button
+              type="button"
+              onClick={clearCover}
+              aria-label="إزالة الغلاف"
+              className="absolute -top-2 -start-2 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => coverInputRef.current?.click()}
+            className="h-32 w-24 rounded-lg border-2 border-dashed border-dark-border flex flex-col items-center justify-center gap-1 text-xs text-muted hover:border-primary hover:text-primary-light transition"
+          >
+            <ImagePlus className="w-5 h-5" />
+            اختر غلاف
+          </button>
+        )}
       </div>
 
       {/* رفع ملف أو إضافة رابط */}
