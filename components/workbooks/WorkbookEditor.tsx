@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { EditorContent, useEditor } from '@tiptap/react';
-import { EditorState } from '@tiptap/pm/state';
+import { EditorState, NodeSelection } from '@tiptap/pm/state';
 import { generateHTML } from '@tiptap/html';
 import DOMPurify from 'isomorphic-dompurify';
 import {
@@ -276,7 +276,13 @@ export default function WorkbookEditor({
         if (upErr) throw upErr;
         const { data } = supabase.storage.from('workbooks').getPublicUrl(path);
         // التنقل بين الصفحات معطّل أثناء الرفع، فالصورة تُدرج حتماً في صفحتها.
-        editor.chain().focus().setImage({ src: data.publicUrl }).run();
+        // التحديد يقرأ عند انتهاء الرفع: عنصر محدد (رسم أو فيديو) تدرج الصورة بعده لا فوقه.
+        const sel = editor.state.selection;
+        if (sel instanceof NodeSelection) {
+          editor.chain().focus().insertContentAt(sel.to, { type: 'image', attrs: { src: data.publicUrl } }).run();
+        } else {
+          editor.chain().focus().setImage({ src: data.publicUrl }).run();
+        }
       } catch {
         setNotice('تعذّر رفع الصورة، حاول مرة ثانية.');
       } finally {
@@ -320,6 +326,26 @@ export default function WorkbookEditor({
    */
   const openDrawing = useCallback(() => {
     if (!editor) return;
+    if (uploading) {
+      setNotice('انتظر انتهاء رفع الصورة أولا.');
+      return;
+    }
+    const sel = editor.state.selection;
+    // رسم محدد: يفتح للتعديل ويحل محل نفسه، بدل لوحة فارغة تمسحه عند الحفظ.
+    if (sel instanceof NodeSelection && sel.node.type.name === 'drawing') {
+      const a = sel.node.attrs as Partial<DrawingValue>;
+      setDrawing({
+        initial: {
+          bg: typeof a.bg === 'string' && /^https:\/\//i.test(a.bg) ? a.bg : null,
+          width: Number(a.width) || 720,
+          height: Number(a.height) || 405,
+          shapes: Array.isArray(a.shapes) ? a.shapes : [],
+        },
+        replace: { from: sel.from, to: sel.to },
+        fit: false,
+      });
+      return;
+    }
     if (editor.isActive('image')) {
       const src = editor.getAttributes('image').src as string | undefined;
       const { from, to } = editor.state.selection;
@@ -330,8 +356,13 @@ export default function WorkbookEditor({
       });
       return;
     }
-    setDrawing({ initial: { bg: null, width: 720, height: 405, shapes: [] }, replace: null, fit: false });
-  }, [editor]);
+    // عنصر آخر محدد (فيديو مثلا): الرسم الجديد يدرج بعده لا فوقه.
+    setDrawing({
+      initial: { bg: null, width: 720, height: 405, shapes: [] },
+      replace: sel instanceof NodeSelection ? { from: sel.to, to: sel.to } : null,
+      fit: false,
+    });
+  }, [editor, uploading]);
 
   const saveDrawing = useCallback(
     (v: DrawingValue) => {
@@ -392,7 +423,7 @@ export default function WorkbookEditor({
         // محتوى الطالب نفسه، لكن يمر عبر منقٍّ قبل الحقن على أي حال.
         const html = DOMPurify.sanitize(generateHTML(allPages[i].doc as never, workbookExtensions), {
           ADD_TAGS: ['iframe'],
-          ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'data-youtube-video', 'data-kind'],
+          ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'data-youtube-video', 'data-kind', 'dominant-baseline'],
         });
 
         const sheet = document.createElement('div');
@@ -584,7 +615,7 @@ export default function WorkbookEditor({
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
         </ToolBtn>
         <ToolBtn onClick={embedYoutube} label="فيديو يوتيوب"><YoutubeIcon className="w-4 h-4" /></ToolBtn>
-        <ToolBtn onClick={openDrawing} label="رسم (اختر صورة في الدفتر للرسم عليها)">
+        <ToolBtn onClick={openDrawing} label="رسم (اختر صورة في الدفتر للرسم عليها)" disabled={uploading}>
           <PenTool className="w-4 h-4" />
           <span className="text-xs font-bold ms-1">رسم</span>
         </ToolBtn>

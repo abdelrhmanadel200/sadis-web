@@ -34,9 +34,10 @@ export default function TermsEnPage() {
       </Section>
 
       <Section title="4. Payments">
-        Payments are processed through our official payment gateway (PayPro
-        Global). Each subscription has a defined validity period displayed at
-        checkout. Subscriptions renew manually unless explicitly stated.
+        Subscriptions are activated with an activation code the student receives
+        from the activation team. Each subscription has a defined validity
+        period displayed at checkout. Subscriptions renew manually unless
+        explicitly stated.
         Pricing may change with at least 14 days advance notice.
       </Section>
 

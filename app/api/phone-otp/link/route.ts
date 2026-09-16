@@ -7,7 +7,7 @@
 // Auth: Authorization: Bearer <access_token> لصاحب الحساب.
 //
 // بعد الربط يستطيع الطالب الدخول برقمه أيضاً: مسار /verify يبحث عن الحساب
-// برقم الهاتف قبل الإيميل الاصطناعي، ويُصدر له جلسة بدون المساس بكلمة مروره.
+// برقم الهاتف، ويُصدر له جلسة بدون المساس بكلمة مروره.
 
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -27,7 +27,6 @@ function bad(message: string, status = 400) {
 }
 
 export async function POST(req: NextRequest) {
-  // من هو المستخدم؟
   const auth = req.headers.get('authorization') ?? '';
   if (!auth.toLowerCase().startsWith('bearer ')) return bad('سجّل دخول أولاً', 401);
   const token = auth.slice(7).trim();
@@ -47,31 +46,23 @@ export async function POST(req: NextRequest) {
   }
   const phone = normalizePhone((body.phone || '').trim());
   const code = (body.code || '').trim();
-  if (!/^[0-9]{10,15}$/.test(phone) || !/^[0-9]{4}$/.test(code)) {
+  // رقم يبدأ بصفر لن يطابقه الدخول بالهاتف أبداً (يُخزَّن دائماً بمفتاح الدولة).
+  if (!/^[0-9]{10,15}$/.test(phone) || phone.startsWith('0') || !/^[0-9]{4}$/.test(code)) {
     return bad('رقم الهاتف أو الرمز غير صالح');
   }
 
   const supa = adminClient();
 
-  // ١) تحقق من الرمز (نفس قواعد مسار الدخول: آخر رمز غير مستهلك، 5 محاولات).
-  const { data: rows, error: fetchErr } = await supa
-    .from('phone_otp_codes')
-    .select('*')
-    .eq('phone', phone)
-    .is('consumed_at', null)
-    .order('created_at', { ascending: false })
-    .limit(1);
-  if (fetchErr) return bad('خطأ في قاعدة البيانات', 500);
-  const row = rows?.[0];
-  if (!row) return bad('لا يوجد رمز نشط، اطلب رمز جديد', 404);
-  if (new Date(row.expires_at).getTime() < Date.now()) return bad('انتهت صلاحية الرمز، اطلب رمز جديد', 410);
-  if ((row.attempts ?? 0) >= 5) return bad('محاولات كثيرة، اطلب رمز جديد', 429);
-  if (row.code_hash !== hashCode(code)) {
-    await supa.from('phone_otp_codes').update({ attempts: (row.attempts ?? 0) + 1 }).eq('id', row.id);
-    return bad('الرمز غير صحيح', 401);
-  }
+  // ١) احجز محاولة بشكل ذري قبل مقارنة الرمز، فالطلبات المتوازية لا تتجاوز
+  //    5 محاولات لكل رمز.
+  const { data: claimed, error: claimErr } = await supa.rpc('otp_claim_attempt', { p_phone: phone });
+  if (claimErr) return bad('خطأ في قاعدة البيانات', 500);
+  const row = (claimed as { id: string; code_hash: string }[] | null)?.[0];
+  if (!row) return bad('انتهت صلاحية الرمز أو تجاوزت عدد المحاولات، اطلب رمزاً جديداً', 429);
+  if (row.code_hash !== hashCode(code)) return bad('الرمز غير صحيح', 401);
 
-  // ٢) الرقم لا يجوز أن يكون مرتبطاً بحساب آخر.
+  // ٢) الرقم لا يجوز أن يكون مرتبطاً بحساب آخر. نفحص قبل حرق الرمز حتى لا
+  //    يضيع رمز صحيح بسبب خطأ في البحث.
   let page = 1;
   while (page < 50) {
     const { data, error } = await supa.auth.admin.listUsers({ page, perPage: 200 });
@@ -82,13 +73,50 @@ export async function POST(req: NextRequest) {
     page += 1;
   }
 
-  // ٣) اربط الرقم بحساب المصادقة وبالبروفايل.
-  const upd = await supa.auth.admin.updateUserById(userId, { phone, phone_confirm: true });
-  if (upd.error) return bad('تعذّر ربط الرقم: ' + upd.error.message, 500);
-  await supa.from('profiles').update({ phone }).eq('id', userId);
+  // الرقم القديم في البروفايل، للتراجع لو فشل ربط حساب الدخول.
+  const { data: prof, error: profReadErr } = await supa
+    .from('profiles')
+    .select('phone')
+    .eq('id', userId)
+    .maybeSingle();
+  if (profReadErr) return bad('خطأ في قاعدة البيانات', 500);
+  const oldPhone = (prof?.phone as string | null) ?? null;
 
-  // ٤) احرق الرمز بعد النجاح فقط.
-  await supa.from('phone_otp_codes').update({ consumed_at: new Date().toISOString() }).eq('id', row.id);
+  // ٣) احرق الرمز: طلب واحد فقط يستطيع استعمال الرمز الصحيح.
+  const { data: burned, error: burnErr } = await supa
+    .from('phone_otp_codes')
+    .update({ consumed_at: new Date().toISOString() })
+    .eq('id', row.id)
+    .is('consumed_at', null)
+    .select('id');
+  if (burnErr) return bad('خطأ في قاعدة البيانات', 500);
+  if (!burned || burned.length === 0) return bad('الرمز مستخدم، اطلب رمزاً جديداً', 409);
+
+  // عند فشل من جهة الخادم بعد الحرق نرجع الرمز صالحا، فيستطيع الطالب إعادة المحاولة.
+  const unburn = async () => {
+    const { error } = await supa.from('phone_otp_codes').update({ consumed_at: null }).eq('id', row.id);
+    if (error) console.error('phone-otp/link: unburn failed', error);
+  };
+
+  // ٤) البروفايل أولاً (القيد UNIQUE يمنع رقماً مكرراً)، ثم حساب الدخول.
+  const { error: profErr } = await supa.from('profiles').update({ phone }).eq('id', userId);
+  if (profErr) {
+    if (profErr.code === '23505') return bad('هذا الرقم مرتبط بحساب آخر بالفعل', 409);
+    console.error('phone-otp/link: profile update failed', profErr);
+    await unburn();
+    return bad('تعذّر ربط الرقم، حاول مرة ثانية', 500);
+  }
+
+  const upd = await supa.auth.admin.updateUserById(userId, { phone, phone_confirm: true });
+  if (upd.error) {
+    console.error('phone-otp/link: updateUserById failed', upd.error);
+    const { error: rollbackErr } = await supa.from('profiles').update({ phone: oldPhone }).eq('id', userId);
+    if (rollbackErr) console.error('phone-otp/link: profile rollback failed', rollbackErr);
+    // حساب لم تصله صفحات البحث أعلاه يملك الرقم: إعادة المحاولة لن تنجح.
+    if (upd.error.code === 'phone_exists') return bad('هذا الرقم مرتبط بحساب آخر بالفعل', 409);
+    await unburn();
+    return bad('تعذّر ربط الرقم، حاول مرة ثانية', 500);
+  }
 
   return new Response(JSON.stringify({ ok: true, phone }), {
     status: 200,

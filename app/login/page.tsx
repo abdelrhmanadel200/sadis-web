@@ -24,6 +24,18 @@ export default function LoginPage() {
 
 type Method = 'email' | 'phone';
 
+/** Same-origin path only. Browsers read `/\evil.com` and `/<tab>/evil.com`
+ *  as `//evil.com`, so a prefix check is not enough: resolve it and compare
+ *  the origin (fixed base, so it also works during prerender). */
+function safeNext(raw: string): string {
+  if (!/^\/(?![\/\\])/.test(raw)) return '/chat';
+  try {
+    return new URL(raw, 'http://same.invalid').origin === 'http://same.invalid' ? raw : '/chat';
+  } catch {
+    return '/chat';
+  }
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,8 +46,7 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
 
   // Sanitise `next` so it can only point inside our site (open-redirect safety).
-  const rawNext = searchParams.get('next') ?? '';
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/chat';
+  const next = safeNext(searchParams.get('next') ?? '');
 
   // If we're already logged in, skip the form.
   useEffect(() => {
@@ -244,7 +255,10 @@ function LoginForm() {
 
           <div className="mt-6 text-center text-sm text-muted">
             أليس لديك حساب؟{' '}
-            <Link href="/register" className="text-primary-light font-semibold">
+            <Link
+              href={next === '/chat' ? '/register' : `/register?next=${encodeURIComponent(next)}`}
+              className="text-primary-light font-semibold"
+            >
               سجّل الآن
             </Link>
           </div>

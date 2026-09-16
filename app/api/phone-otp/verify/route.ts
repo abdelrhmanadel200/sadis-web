@@ -56,38 +56,22 @@ export async function POST(req: NextRequest) {
 
   const supa = adminClient();
 
-  // 1. Latest non-consumed OTP for this phone.
-  const { data: rows, error: fetchErr } = await supa
-    .from('phone_otp_codes')
-    .select('*')
-    .eq('phone', phone)
-    .is('consumed_at', null)
-    .order('created_at', { ascending: false })
-    .limit(1);
-  if (fetchErr) return bad('خطأ في قاعدة البيانات', 500);
-  const row = rows?.[0];
-  if (!row) return bad('لا يوجد رمز نشط، اطلب رمز جديد', 404);
-  if (new Date(row.expires_at).getTime() < Date.now()) {
-    return bad('انتهت صلاحية الرمز، اطلب رمز جديد', 410);
-  }
-  if ((row.attempts ?? 0) >= 5) {
-    return bad('محاولات كثيرة، اطلب رمز جديد', 429);
-  }
+  // 1+2. احجز محاولة بشكل ذري ثم قارن الرمز: otp_claim_attempt يقفل الصف
+  //      ويعيد فحص attempts < 5، فالطلبات المتوازية لا تتجاوز 5 محاولات.
+  const { data: claimed, error: claimErr } = await supa.rpc('otp_claim_attempt', { p_phone: phone });
+  if (claimErr) return bad('خطأ في قاعدة البيانات', 500);
+  const row = (claimed as { id: string; code_hash: string }[] | null)?.[0];
+  if (!row) return bad('انتهت صلاحية الرمز أو تجاوزت عدد المحاولات، اطلب رمز جديد', 429);
+  if (row.code_hash !== hashCode(code)) return bad('الرمز غير صحيح', 401);
 
-  // 2. Hash compare.
-  if (row.code_hash !== hashCode(code)) {
-    await supa
-      .from('phone_otp_codes')
-      .update({ attempts: (row.attempts ?? 0) + 1 })
-      .eq('id', row.id);
-    return bad('الرمز غير صحيح', 401);
-  }
-
-  // 3. Burn the OTP.
-  await supa
+  // 3. احرق الرمز بشرط أنه لم يستخدم: طلب واحد فقط يمر بالرمز الصحيح.
+  const { data: burned } = await supa
     .from('phone_otp_codes')
     .update({ consumed_at: new Date().toISOString() })
-    .eq('id', row.id);
+    .eq('id', row.id)
+    .is('consumed_at', null)
+    .select('id');
+  if (!burned || burned.length === 0) return bad('الرمز مستخدم، اطلب رمز جديد', 409);
 
   // 4. Find or create a Supabase auth user keyed by synthetic email.
   const email = syntheticEmail(phone);

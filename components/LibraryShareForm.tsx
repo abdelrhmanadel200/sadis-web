@@ -260,7 +260,7 @@ export default function LibraryShareForm({
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) pickCover(f); }}
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) pickCover(f); }}
         />
         {coverPreview ? (
           <div className="relative inline-block">
@@ -317,6 +317,8 @@ export default function LibraryShareForm({
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
+              // تفريغ الحقل فورا: اختيار نفس الملف بعد خطأ يطلق الحدث من جديد.
+              e.target.value = '';
               if (f) void shareFile(f);
             }}
           />

@@ -258,6 +258,7 @@ function LectureCard({
             <Play className="w-5 h-5 text-primary ms-0.5" fill="currentColor" />
           </div>
         </div>
+        <OfficialBadge className="absolute top-2 end-2" />
       </button>
       <div className="p-3 flex-1 flex flex-col">
         <h3 className="font-cairo font-bold text-sm line-clamp-2 mb-1">

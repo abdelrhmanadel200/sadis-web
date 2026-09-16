@@ -103,7 +103,7 @@ export function FAQ() {
             لم تجد إجابة لسؤالك؟
           </p>
           <a
-            href="#contact"
+            href="mailto:support@6thultra.com"
             className="inline-flex items-center gap-2 text-primary hover:underline"
           >
             تواصل معنا مباشرة

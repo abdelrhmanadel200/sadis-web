@@ -113,6 +113,22 @@ export default function DrawingEditorModal({
   // المرجع هو مصدر الحقيقة أثناء السحب: حدث الرفع قد يسبق إعادة الرسم.
   const draftRef = useRef<Shape | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
+  // إصبع واحد فقط يرسم: لمسة ثانية (راحة اليد مثلا) لا تمسح الخط ولا تخلطه.
+  const activePtr = useRef<number | null>(null);
+  // نوع المؤشر النشط، وهل ظهر قلم (ستايلس): بعد ظهوره يعامل اللمس كراحة يد لا ترسم.
+  const activeType = useRef<string | null>(null);
+  const penSeen = useRef(false);
+  // سجل تراجع حقيقي: يعيد الشكل الممحو بدل حذف شكل آخر.
+  const [past, setPast] = useState<Shape[][]>([]);
+  const commit = (next: Shape[]) => {
+    setPast((p) => [...p.slice(-100), shapes]);
+    setShapes(next);
+  };
+  const undo = () => {
+    if (past.length === 0) return;
+    setShapes(past[past.length - 1]);
+    setPast((p) => p.slice(0, -1));
+  };
 
   const fitHeight = useCallback(
     (url: string) =>
@@ -156,7 +172,23 @@ export default function DrawingEditorModal({
     };
   };
 
+  // يلغي مسودة اللمس النشطة دون حفظها (راحة يد سبقت القلم).
+  const dropTouchDraft = () => {
+    activePtr.current = null;
+    activeType.current = null;
+    startRef.current = null;
+    setDraftBoth(null);
+  };
+
   const onDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.pointerType === 'pen') penSeen.current = true;
+    if (penSeen.current && e.pointerType === 'touch') return;
+    if (activePtr.current !== null) {
+      // القلم يأخذ اللوحة من لمسة سبقته، وأي مؤشر آخر (إصبع ثان مثلا) يتجاهل.
+      if (!(e.pointerType === 'pen' && activeType.current === 'touch')) return;
+      dropTouchDraft();
+    }
+    if (!e.isPrimary) return;
     if (tool === 'eraser') return;
     if (shapes.length >= MAX_SHAPES) {
       setErr('وصلت للحد الأقصى من الأشكال في هذا الرسم.');
@@ -166,10 +198,12 @@ export default function DrawingEditorModal({
     if (tool === 'text') {
       const text = window.prompt('اكتب النص:');
       if (text && text.trim()) {
-        setShapes((s) => [...s, { t: 'text', c: color, s: 12 + width * 4, x: pt.x, y: pt.y, text: text.trim().slice(0, 200) }]);
+        commit([...shapes, { t: 'text', c: color, s: 12 + width * 4, x: pt.x, y: pt.y, text: text.trim().slice(0, 200) }]);
       }
       return;
     }
+    activePtr.current = e.pointerId;
+    activeType.current = e.pointerType;
     svgRef.current?.setPointerCapture(e.pointerId);
     startRef.current = pt;
     if (tool === 'pen') setDraftBoth({ t: 'pen', c: color, w: width, p: [pt.x, pt.y] });
@@ -179,6 +213,12 @@ export default function DrawingEditorModal({
   };
 
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    // قلم يحوم فوق اللوحة قبل أن يلمسها: اللمس بعده راحة يد، ومسودته تلغى.
+    if (e.pointerType === 'pen') {
+      penSeen.current = true;
+      if (activeType.current === 'touch') dropTouchDraft();
+    }
+    if (e.pointerId !== activePtr.current) return;
     const d = draftRef.current;
     const s0 = startRef.current;
     if (!d || !s0) return;
@@ -215,7 +255,10 @@ export default function DrawingEditorModal({
     }
   };
 
-  const onUp = () => {
+  const onUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.pointerId !== activePtr.current) return;
+    activePtr.current = null;
+    activeType.current = null;
     const d = draftRef.current;
     startRef.current = null;
     setDraftBoth(null);
@@ -225,7 +268,7 @@ export default function DrawingEditorModal({
       (d.t === 'rect' && (d.wd < 2 || d.ht < 2)) ||
       (d.t === 'ellipse' && (d.rx < 1 || d.ry < 1));
     if (tiny) return;
-    setShapes((s) => (s.length >= MAX_SHAPES ? s : [...s, d]));
+    if (shapes.length < MAX_SHAPES) commit([...shapes, d]);
   };
 
   const pickBg = async (file: File) => {
@@ -287,12 +330,12 @@ export default function DrawingEditorModal({
 
         <span className="mx-1 h-6 w-px bg-white/15" />
 
-        <button type="button" onClick={() => setShapes((s) => s.slice(0, -1))} className={btn(false)} title="تراجع">
+        <button type="button" onClick={undo} disabled={past.length === 0} className={`${btn(false)} disabled:opacity-40`} title="تراجع">
           <Undo2 className="w-4 h-4" />
         </button>
         <button
           type="button"
-          onClick={() => shapes.length && window.confirm('مسح كل الرسم؟') && setShapes([])}
+          onClick={() => shapes.length > 0 && window.confirm('مسح كل الرسم؟') && commit([])}
           className={btn(false)}
           title="مسح الكل"
         >
@@ -359,6 +402,7 @@ export default function DrawingEditorModal({
               onPointerMove={onMove}
               onPointerUp={onUp}
               onPointerCancel={onUp}
+              onLostPointerCapture={onUp}
               style={{
                 position: 'absolute',
                 top: 0,
@@ -379,12 +423,15 @@ export default function DrawingEditorModal({
                     style={{ cursor: 'pointer' }}
                     onPointerDown={(ev) => {
                       ev.stopPropagation();
-                      setShapes((arr) => arr.filter((_, j) => j !== i));
+                      if (ev.pointerType === 'pen') penSeen.current = true;
+                      // بعد ظهور القلم لا تمحو راحة اليد الأشكال.
+                      if (penSeen.current && ev.pointerType === 'touch') return;
+                      commit(shapes.filter((_, j) => j !== i));
                     }}
                   >
                     {createElement(el.tag, props, el.text)}
                     {el.tag !== 'text' &&
-                      createElement(el.tag, { ...props, stroke: 'rgba(0,0,0,0)', strokeWidth: '22', fill: 'none', pointerEvents: 'stroke' })}
+                      createElement(el.tag, { ...props, stroke: 'rgba(0,0,0,0)', strokeWidth: '40', vectorEffect: 'non-scaling-stroke', fill: 'none', pointerEvents: 'stroke' })}
                   </g>
                 );
               })}

@@ -3,7 +3,7 @@
 // Body: { phone: string }   // E.164 with or without leading +, e.g. "+9647700000000" or "20100..."
 // - Generates a 4-digit OTP, stores a hashed copy in `phone_otp_codes`.
 // - Sends the code over SMS via OTPIQ (provider: "sms").
-// - Throttled to 1 SMS / 60s per phone.
+// - Throttled to 1 SMS / 60s and 10 SMS / 24h per phone.
 
 import { NextRequest } from 'next/server';
 import {
@@ -23,6 +23,9 @@ const OTPIQ_ENDPOINT = 'https://api.otpiq.com/api/sms';
 // Per-phone send rate limit.
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_MAX = 1;
+// سقف يومي لكل رقم: يحد تكلفة الرسائل ومحاولات تخمين الرمز عبر رموز جديدة.
+const DAILY_WINDOW_SECONDS = 24 * 60 * 60;
+const DAILY_MAX = 10;
 // How long a freshly-generated code is valid.
 const CODE_TTL_SECONDS = 300;
 
@@ -50,17 +53,26 @@ export async function POST(req: NextRequest) {
 
   const supa = adminClient();
 
-  // Rate limit: deny if a code was already sent to this phone recently.
-  const windowStart = new Date(
-    Date.now() - RATE_LIMIT_WINDOW_SECONDS * 1000,
-  ).toISOString();
-  const { count: recentCount, error: recentErr } = await supa
-    .from('phone_otp_codes')
-    .select('*', { count: 'exact', head: true })
-    .eq('phone', phone)
-    .gte('created_at', windowStart);
-  if (recentErr) {
+  // Rate limit: deny if a code was already sent to this phone recently,
+  // or if the phone already got DAILY_MAX codes in the last 24h.
+  const countSince = (seconds: number) =>
+    supa
+      .from('phone_otp_codes')
+      .select('*', { count: 'exact', head: true })
+      .eq('phone', phone)
+      .gte('created_at', new Date(Date.now() - seconds * 1000).toISOString());
+  const [
+    { count: recentCount, error: recentErr },
+    { count: dailyCount, error: dailyErr },
+  ] = await Promise.all([
+    countSince(RATE_LIMIT_WINDOW_SECONDS),
+    countSince(DAILY_WINDOW_SECONDS),
+  ]);
+  if (recentErr || dailyErr) {
     return bad('تعذّر التحقق من حالة الإرسال', 500);
+  }
+  if ((dailyCount ?? 0) >= DAILY_MAX) {
+    return bad('وصلت للحد اليومي لرسائل التحقق لهذا الرقم، حاول مرة أخرى بعد 24 ساعة', 429);
   }
   if ((recentCount ?? 0) >= RATE_LIMIT_MAX) {
     return bad('انتظر قليلاً قبل إعادة إرسال الرمز', 429);

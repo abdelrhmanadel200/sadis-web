@@ -146,22 +146,31 @@ export default function WorkbooksPage() {
   const remove = async (wb: Workbook) => {
     if (!confirm(`حذف "${wb.title}" نهائياً؟`)) return;
     setError(null);
-    // احذف ملفات الدفتر أيضاً: الصور المضمّنة داخل الصفحات وملف الـ PDF
-    // المستورد. بدون ذلك تبقى في المخزن إلى الأبد وتستهلك المساحة.
-    const paths = collectStoragePaths(wb);
-    if (paths.length > 0) {
-      const { error: rmErr } = await supabase.storage.from('workbooks').remove(paths);
-      if (rmErr) {
-        setError('تعذّر حذف ملفات الدفتر، حاول مرة ثانية.');
-        return;
-      }
-    }
+    // الصف أولا: لو فشل حذفه يبقى الدفتر كاملا بصوره.
     const { error: delErr } = await supabase.from('workbooks').delete().eq('id', wb.id);
     if (delErr) {
       setError('تعذّر حذف الدفتر، حاول مرة ثانية.');
       return;
     }
     setRows((prev) => prev.filter((r) => r.id !== wb.id));
+    // ثم ملفات الدفتر (صور الصفحات وملف الـ PDF) حتى لا تبقى في المخزن إلى الأبد.
+    const candidates = collectStoragePaths(wb);
+    if (candidates.length === 0) return;
+    try {
+      // قراءة جديدة لباقي الدفاتر: صورة منسوخة لدفتر آخر (ولو من تبويب آخر)
+      // لها نفس الرابط، فلا تحذف ما زال مستخدما.
+      const { data: others, error: othErr } = await supabase
+        .from('workbooks')
+        .select('id, pdf_path, content')
+        .neq('id', wb.id);
+      // عند الفشل تبقى الملفات يتيمة، وهذا أهون من كسر دفتر آخر.
+      if (othErr || !others) return;
+      const stillUsed = new Set(others.flatMap((r) => collectStoragePaths(r as Workbook)));
+      const paths = candidates.filter((p) => !stillUsed.has(p));
+      if (paths.length > 0) await supabase.storage.from('workbooks').remove(paths);
+    } catch {
+      // تنظيف الملفات لا يوقف الحذف: الدفتر حذف فعلا.
+    }
   };
 
   const openPdf = (wb: Workbook) => {
@@ -379,13 +388,15 @@ function collectStoragePaths(wb: Workbook): string[] {
   const visit = (node: unknown) => {
     if (Array.isArray(node)) { node.forEach(visit); return; }
     if (!node || typeof node !== 'object') return;
-    const n = node as { type?: string; attrs?: { src?: string; bg?: string }; content?: unknown };
+    const n = node as { type?: string; attrs?: { src?: string; bg?: string }; content?: unknown; doc?: unknown };
     const url = n.type === 'image' ? n.attrs?.src : n.type === 'drawing' ? n.attrs?.bg : undefined;
     if (typeof url === 'string' && url.startsWith(PUBLIC_PREFIX)) {
       const path = decodeURIComponent(url.slice(PUBLIC_PREFIX.length).split('?')[0]);
       if (path) paths.add(path);
     }
     if (n.content) visit(n.content);
+    // كل صفحة في الدفتر {id, doc}: المحتوى داخل doc.
+    if (n.doc) visit(n.doc);
   };
   visit(wb.content?.pages);
   return Array.from(paths);

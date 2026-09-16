@@ -6,14 +6,25 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+/** Same check as /login: browsers read `/\evil.com` and `/<tab>/evil.com`
+ *  as `//evil.com`, so resolve the path and compare the origin. */
+function safeNext(raw: string): string {
+  if (!/^\/(?![\/\\])/.test(raw)) return '/chat';
+  try {
+    return new URL(raw, 'http://same.invalid').origin === 'http://same.invalid' ? raw : '/chat';
+  } catch {
+    return '/chat';
+  }
+}
+
 function OtpForm() {
   const router = useRouter();
   const params = useSearchParams();
   const email = params.get('email') || '';
   const mode = params.get('mode');
-  // Same-origin-only next URL forwarded from /login.
-  const rawNext = params.get('next') ?? '';
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/chat';
+  // Same-origin-only next URL forwarded from /login or /register.
+  const next = safeNext(params.get('next') ?? '');
+  const loginHref = next === '/chat' ? '/login' : `/login?next=${encodeURIComponent(next)}`;
 
   const [digits, setDigits] = useState<string[]>(Array(6).fill(''));
   const [loading, setLoading] = useState(false);
@@ -22,8 +33,8 @@ function OtpForm() {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    if (!email) router.replace('/login');
-  }, [email, router]);
+    if (!email) router.replace(loginHref);
+  }, [email, loginHref, router]);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -145,7 +156,7 @@ function OtpForm() {
           shouldCreateUser: true,
           emailRedirectTo:
             typeof window !== 'undefined'
-              ? `${window.location.origin}/chat`
+              ? `${window.location.origin}${next}`
               : undefined,
         },
       });
@@ -161,7 +172,7 @@ function OtpForm() {
       <div className="w-full max-w-md">
         <div className="flex items-center justify-between mb-8">
           <Link
-            href="/login"
+            href={loginHref}
             className="inline-flex items-center gap-2 text-muted hover:opacity-80"
           >
             <ArrowLeft className="w-4 h-4 rotate-180" />

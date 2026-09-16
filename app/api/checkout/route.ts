@@ -119,6 +119,19 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (planErr || !plan) return bad('الباقة غير متاحة', 404);
 
+  // لا تنشئ طلبا معلقا والبوابة معطلة: كان الصف اليتيم يظهر للطالب
+  // "طلبك تحت المراجعة" بدل باقته الفعالة.
+  const cfg = loadZainCashConfig();
+  if (!cfg) {
+    return bad(
+      'بوابة الدفع غير مفعّلة بعد. يرجى استخدام رمز التفعيل أو المحاولة لاحقاً.',
+      503,
+    );
+  }
+  if (!plan.price_iqd || plan.price_iqd <= 0) {
+    return bad('الباقة لا تحتوي على سعر بالدينار العراقي', 400);
+  }
+
   // 3. Create a pending subscription row. The callback handler will flip
   // it to `active` once ZainCash confirms the charge. The row id is the
   // `orderId` we hand to ZainCash so the callback knows which row to
@@ -142,16 +155,6 @@ export async function POST(req: NextRequest) {
   }
 
   // 4. Initiate the ZainCash transaction.
-  const cfg = loadZainCashConfig();
-  if (!cfg) {
-    return bad(
-      'بوابة الدفع غير مفعّلة بعد. يرجى استخدام رمز التفعيل أو المحاولة لاحقاً.',
-      503,
-    );
-  }
-  if (!plan.price_iqd || plan.price_iqd <= 0) {
-    return bad('الباقة لا تحتوي على سعر بالدينار العراقي', 400);
-  }
 
   try {
     const result = await initTransaction(cfg, {

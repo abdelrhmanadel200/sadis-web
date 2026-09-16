@@ -21,9 +21,27 @@ interface Counts {
   mine: 1 | -1 | 0;
 }
 
+const EMPTY: Counts = { likes: 0, dislikes: 0, mine: 0 };
+
+/** الأعداد بعد نقرة الطالب: نفس الزر يلغي، والزر الآخر يبدّل. */
+function applyToggle(cur: Counts, value: 1 | -1): Counts {
+  if (cur.mine === value) {
+    return {
+      likes: cur.likes - (value === 1 ? 1 : 0),
+      dislikes: cur.dislikes - (value === -1 ? 1 : 0),
+      mine: 0,
+    };
+  }
+  return {
+    likes: cur.likes + (value === 1 ? 1 : 0) - (cur.mine === 1 ? 1 : 0),
+    dislikes: cur.dislikes + (value === -1 ? 1 : 0) - (cur.mine === -1 ? 1 : 0),
+    mine: value,
+  };
+}
+
 /**
  * يجلب أعداد اللايك/الدسلايك لمجموعة عناصر دفعة واحدة (RPC واحد للصفحة كلها)
- * ويوفر دالة تبديل تفاعل الطالب مع تحديث فوري في الواجهة.
+ * ويوفر دالة تبديل تفاعل الطالب مع تحديث فوري يُتراجع عنه إن فشل الحفظ.
  */
 export function useReactions(kind: ReactionKind, ids: string[]) {
   const { user } = useAuth();
@@ -53,30 +71,28 @@ export function useReactions(kind: ReactionKind, ids: string[]) {
   const toggle = useCallback(
     async (itemId: string, value: 1 | -1) => {
       if (!user) return false;
-      const cur = map[itemId] ?? { likes: 0, dislikes: 0, mine: 0 };
+      const cur = map[itemId] ?? EMPTY;
       const removing = cur.mine === value;
-      // تحديث فوري
-      setMap((m) => ({
-        ...m,
-        [itemId]: {
-          likes: cur.likes + (removing && value === 1 ? -1 : 0) + (!removing && value === 1 ? 1 : 0) + (!removing && cur.mine === 1 && value === -1 ? -1 : 0),
-          dislikes: cur.dislikes + (removing && value === -1 ? -1 : 0) + (!removing && value === -1 ? 1 : 0) + (!removing && cur.mine === -1 && value === 1 ? -1 : 0),
-          mine: removing ? 0 : value,
-        },
-      }));
-      if (removing) {
-        const { error } = await supabase
-          .from('reactions')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('kind', kind)
-          .eq('item_id', itemId);
-        return !error;
+      setMap((m) => ({ ...m, [itemId]: applyToggle(cur, value) }));
+
+      const { error } = removing
+        ? await supabase
+            .from('reactions')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('kind', kind)
+            .eq('item_id', itemId)
+        : await supabase
+            .from('reactions')
+            .upsert({ user_id: user.id, kind, item_id: itemId, value }, { onConflict: 'user_id,kind,item_id' });
+
+      if (error) {
+        // ارجع للحالة السابقة بدل أن يرى الطالب تفاعلاً لم يُحفظ.
+        setMap((m) => ({ ...m, [itemId]: cur }));
+        alert('تعذّر حفظ تفاعلك، حاول مرة ثانية.');
+        return false;
       }
-      const { error } = await supabase
-        .from('reactions')
-        .upsert({ user_id: user.id, kind, item_id: itemId, value }, { onConflict: 'user_id,kind,item_id' });
-      return !error;
+      return true;
     },
     [user, kind, map],
   );
@@ -97,11 +113,19 @@ export function ReactionBar({
   compact?: boolean;
 }) {
   const { user } = useAuth();
-  const c = counts ?? { likes: 0, dislikes: 0, mine: 0 };
+  const c = counts ?? EMPTY;
   const size = compact ? 'w-3.5 h-3.5' : 'w-4 h-4';
   const base = `inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition ${compact ? '' : 'border'}`;
   return (
-    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+    // preventDefault ضروري: بعض البطاقات روابط (قنوات تليجرام)، وبدونه تفتح
+    // القناة مع كل ضغطة لايك.
+    <div
+      className="flex items-center gap-1"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
       <button
         type="button"
         title={user ? 'أعجبني' : 'سجّل دخولك لتتفاعل'}

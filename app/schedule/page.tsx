@@ -171,7 +171,7 @@ export default function SchedulePage() {
                               value={c.note}
                               onChange={(e) => update(d, p, { note: e.target.value })}
                               placeholder="ملاحظة"
-                              className="w-full bg-transparent text-[11px] text-center text-gray-300 outline-none placeholder:text-gray-500 mt-0.5"
+                              className="w-full bg-transparent text-[11px] text-center text-foreground/80 outline-none placeholder:text-muted-foreground mt-0.5"
                             />
                           </div>
                         </td>

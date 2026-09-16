@@ -23,7 +23,7 @@ const TRIAL_OPEN = FREE_TRIAL_QUOTA <= 0;
  *  `Authorization: Bearer <jwt>` header (Flutter / direct REST). The web app
  *  uses Supabase's default localStorage persistence, so cookies aren't always
  *  set; the chat client must therefore attach the access token explicitly. */
-async function resolveUserId(req?: Request): Promise<string | null> {
+async function resolveUser(req?: Request): Promise<{ id: string; token: string | null } | null> {
   // 1. Bearer token (works for both web and Flutter).
   const authHeader = req?.headers.get('authorization') ?? '';
   if (authHeader.toLowerCase().startsWith('bearer ')) {
@@ -35,7 +35,7 @@ async function resolveUserId(req?: Request): Promise<string | null> {
           global: { headers: { Authorization: `Bearer ${token}` } },
         });
         const { data } = await anon.auth.getUser(token);
-        if (data.user) return data.user.id;
+        if (data.user) return { id: data.user.id, token };
       } catch {/* fall through */}
     }
   }
@@ -50,7 +50,9 @@ async function resolveUserId(req?: Request): Promise<string | null> {
       },
     });
     const { data } = await userClient.auth.getUser();
-    return data.user?.id ?? null;
+    if (!data.user) return null;
+    const { data: sess } = await userClient.auth.getSession();
+    return { id: data.user.id, token: sess.session?.access_token ?? null };
   } catch {
     return null;
   }
@@ -72,6 +74,10 @@ export interface AccessDecision {
   chatActive?: boolean;
   /** Admin-supplied reason when `reason === 'banned'`. */
   banReason?: string | null;
+  /** Signed-in user id (set whenever a session was resolved). */
+  userId?: string;
+  /** The caller's own access token, for RPCs that check auth.uid(). */
+  accessToken?: string | null;
 }
 
 /**
@@ -84,8 +90,10 @@ export interface AccessDecision {
  *   3. Otherwise → deny with `no_subscription`.
  */
 export async function checkChatAccess(req?: Request): Promise<AccessDecision> {
-  const userId = await resolveUserId(req);
-  if (!userId) return { allowed: false, reason: 'no_session' };
+  const who = await resolveUser(req);
+  if (!who) return { allowed: false, reason: 'no_session' };
+  const userId = who.id;
+  const base = { userId, accessToken: who.token };
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { persistSession: false },
@@ -99,6 +107,7 @@ export async function checkChatAccess(req?: Request): Promise<AccessDecision> {
     .maybeSingle();
   if (profile?.banned_at) {
     return {
+      ...base,
       allowed: false,
       reason: 'banned',
       banReason: (profile.ban_reason as string | null) ?? null,
@@ -114,13 +123,13 @@ export async function checkChatAccess(req?: Request): Promise<AccessDecision> {
     .eq('user_id', userId);
   const ent = computeEntitlements((subRows ?? []) as SubRow[]);
   if (ent.aiActive) {
-    return { allowed: true, chatActive: true, expiresAt: ent.aiExpiresAt };
+    return { ...base, allowed: true, chatActive: true, expiresAt: ent.aiExpiresAt };
   }
 
   // 2. Trial open OR signed-in non-subscriber → allowed in DEMO MODE.
   // The chat route inspects `chatActive` to pick the system prompt.
   if (TRIAL_OPEN) {
-    return { allowed: true, chatActive: false };
+    return { ...base, allowed: true, chatActive: false };
   }
 
   // 3. Free trial — counted toward "messages sent". Still in demo mode
@@ -134,7 +143,77 @@ export async function checkChatAccess(req?: Request): Promise<AccessDecision> {
   const used = count ?? 0;
   const freeRemaining = Math.max(0, FREE_TRIAL_QUOTA - used);
   if (freeRemaining > 0) {
-    return { allowed: true, chatActive: false, freeRemaining };
+    return { ...base, allowed: true, chatActive: false, freeRemaining };
   }
-  return { allowed: false, reason: 'no_subscription', freeRemaining: 0 };
+  return { ...base, allowed: false, reason: 'no_subscription', freeRemaining: 0 };
+}
+
+/** نفس حدود تطبيق أندرويد (UsageService) والمذكورة في صفحة الأسعار. */
+export const TEXT_DAILY_LIMIT = 50;
+export const VOICE_DAILY_LIMIT = 5;
+
+/**
+ * يحجز سؤالا من الحد اليومي عبر increment_ai_usage، وهو نفس العداد الذي
+ * يستعمله التطبيق. الدالة في القاعدة تشترط auth.uid() = p_user_id، لذلك
+ * تستدعى بتوكن الطالب نفسه لا بمفتاح الخدمة. عند تعذر العد لا نمنع الطالب
+ * (مثل التطبيق)، ونمنعه فقط عند بلوغ الحد فعلا.
+ */
+export async function consumeDailyAi(
+  access: AccessDecision,
+  column: 'text_count' | 'voice_count',
+  limit: number,
+): Promise<'ok' | 'limit' | 'error'> {
+  if (!access.userId || !access.accessToken) return 'error';
+  try {
+    const userDb = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${access.accessToken}` } },
+    });
+    const { data, error } = await userDb.rpc('increment_ai_usage', {
+      p_user_id: access.userId,
+      p_usage_date: new Date().toISOString().slice(0, 10),
+      p_column: column,
+      p_limit: limit,
+    });
+    if (error) {
+      console.error('increment_ai_usage failed', error.message);
+      return 'error';
+    }
+    return typeof data === 'number' && data < 0 ? 'limit' : 'ok';
+  } catch {
+    return 'error';
+  }
+}
+
+/**
+ * قراءة فقط لعداد اليوم قبل خطوة مكلفة (مثل Whisper) بدون حجز سؤال. سياسة
+ * RLS تسمح للطالب بقراءة صفه فقط، لذلك تستدعى بتوكنه. عند أي خطأ لا نمنع،
+ * والحد الفعلي يبقى في consumeDailyAi الذري.
+ */
+export async function peekDailyAi(
+  access: AccessDecision,
+  column: 'text_count' | 'voice_count',
+  limit: number,
+): Promise<'ok' | 'limit' | 'error'> {
+  if (!access.userId || !access.accessToken) return 'error';
+  try {
+    const userDb = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${access.accessToken}` } },
+    });
+    const { data, error } = await userDb
+      .from('ai_usage_daily')
+      .select(column)
+      .eq('user_id', access.userId)
+      .eq('usage_date', new Date().toISOString().slice(0, 10))
+      .maybeSingle();
+    if (error) {
+      console.error('ai_usage_daily peek failed', error.message);
+      return 'error';
+    }
+    const used = Number((data as Record<string, unknown> | null)?.[column] ?? 0);
+    return Number.isFinite(used) && used >= limit ? 'limit' : 'ok';
+  } catch {
+    return 'error';
+  }
 }

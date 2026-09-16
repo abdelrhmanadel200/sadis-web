@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { askOpenAIStream, type ChatHistoryMessage } from '@/lib/openai';
 import { fetchRagContext, buildRagContext } from '@/lib/rag';
-import { checkChatAccess } from '@/lib/subscription-guard';
+import { checkChatAccess, consumeDailyAi, TEXT_DAILY_LIMIT } from '@/lib/subscription-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,11 +24,36 @@ interface ChatPayload {
 const MAX_IMAGE_DATA_URL_LENGTH = 4 * 1024 * 1024;
 const IMAGE_DATA_URL_RE = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 
+// السؤال نفسه واسم المادة لهم حد أيضا، حتى لا ينتقل الحشو من السجل إلى
+// حقل آخر. خانة الكتابة في ChatView بنفس الحد.
+const MAX_QUESTION_CHARS = 4000;
+const MAX_SUBJECT_NAME_CHARS = 100;
+
 function badRequest(msg: string) {
   return new Response(JSON.stringify({ error: msg }), {
     status: 400,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+/**
+ * السجل يأتي من المتصفح فلا نثق به: مصفوفة فقط، أدوار user/assistant بنص
+ * عادي (بلا system ولا صور)، آخر 20 رسالة، وكل رسالة بحد 4000 حرف. الحد
+ * اليومي يعد الطلبات لا التوكنات، فبدون هذا سؤال واحد قد يكلف أضعاف العادي.
+ */
+function cleanHistory(raw: unknown): ChatHistoryMessage[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (m): m is { role: 'user' | 'assistant'; content: string } =>
+        !!m &&
+        typeof m === 'object' &&
+        ((m as { role?: unknown }).role === 'user' ||
+          (m as { role?: unknown }).role === 'assistant') &&
+        typeof (m as { content?: unknown }).content === 'string',
+    )
+    .slice(-20)
+    .map((m) => ({ role: m.role, text: m.content.slice(0, 4000) }));
 }
 
 export async function POST(req: NextRequest) {
@@ -68,24 +93,30 @@ export async function POST(req: NextRequest) {
     return badRequest('Invalid JSON body');
   }
 
-  let question = (body.question || '').trim();
-  let history: ChatHistoryMessage[] = (body.history || []).map((m) => ({
-    role: m.role,
-    text: m.content,
-  }));
+  // التنظيف كله قبل consumeDailyAi، فالطلب التالف لا يستهلك سؤالا.
+  let question = typeof body.question === 'string' ? body.question.trim() : '';
+  let history = cleanHistory(body.history);
 
   if (!question && Array.isArray(body.messages) && body.messages.length > 0) {
-    const all = body.messages;
-    const last = all[all.length - 1];
-    if (!last || last.role !== 'user' || !last.content?.trim()) {
+    const all: unknown[] = body.messages;
+    const last = all[all.length - 1] as { role?: unknown; content?: unknown } | null;
+    if (
+      !last ||
+      typeof last !== 'object' ||
+      last.role !== 'user' ||
+      typeof last.content !== 'string' ||
+      !last.content.trim()
+    ) {
       return badRequest('Last message must be from user with non-empty content');
     }
     question = last.content.trim();
-    history = all.slice(0, -1).map((m) => ({
-      role: m.role,
-      text: m.content,
-    }));
+    history = cleanHistory(all.slice(0, -1));
   }
+  question = question.slice(0, MAX_QUESTION_CHARS);
+  const subjectName =
+    typeof body.subjectName === 'string'
+      ? body.subjectName.slice(0, MAX_SUBJECT_NAME_CHARS)
+      : null;
 
   // Attached image (optional). With an image, empty text is fine — the
   // model is asked to solve what's in the picture.
@@ -103,6 +134,18 @@ export async function POST(req: NextRequest) {
 
   if (!question && !imageDataUrl) return badRequest('Missing question');
 
+  // نفس الحد اليومي في التطبيق والمذكور في صفحة الأسعار. العداد ذري في القاعدة.
+  const usage = await consumeDailyAi(access, 'text_count', TEXT_DAILY_LIMIT);
+  if (usage === 'limit') {
+    return new Response(
+      JSON.stringify({
+        error: 'daily_limit',
+        message: `وصلت للحد اليومي (${TEXT_DAILY_LIMIT} سؤال). يتجدد الحد الساعة 3 فجرا بتوقيت العراق.`,
+      }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
   // Best-effort RAG lookup. Empty result → falls back to general knowledge.
   // In demo mode we skip RAG entirely and feed the "platform intro" system
   // prompt below so the model never reveals curriculum content to non-paying
@@ -115,13 +158,17 @@ export async function POST(req: NextRequest) {
 
 قواعد صارمة:
 1. لا تجاوب على أي سؤال له علاقة بالمنهج أو المواد أو الواجبات.
-2. كلما سُئلت سؤال علمي، اعتذر بلطف وذكّر الطالب أن الإجابة المفصّلة تتطلب الاشتراك في باقة "الأستاذ ذكي - شهري" بسعر 25,000 د.ع.
-3. اشرح للطالب أقسام المنصة الأربعة بإيجاز:
-   - الأستاذ ذكي: دردشة نصية وصوتية تشرح المنهج خطوة بخطوة.
-   - المكتبة: كتب وملخصات قابلة للتحميل.
-   - المحاضرات: فيديوهات شرح من أساتذة معتمدين.
+2. كلما سئلت سؤالا علميا، اعتذر بلطف ووضح أن الإجابات الكاملة تحتاج اشتراكا يفعل برمز تفعيل:
+   - الباقة الأساسية 25,000 د.ع: كل أقسام المنصة لمدة سنة، والأستاذ ذكي لمدة شهر يتجدد برمز إعادة تعبئة الذكاء الاصطناعي.
+   - الباقة السنوية 250,000 د.ع: كل الأقسام والأستاذ ذكي لمدة سنة كاملة.
+3. اشرح للطالب أقسام المنصة بإيجاز:
+   - الأستاذ ذكي: دردشة نصية وصوتية وحل المسائل بالصورة.
+   - مكتبة ألترا ومكتبة سادس: كتب وملازم وملفات قابلة للتحميل.
+   - مناهج الأسئلة الوزارية: أسئلة الوزارة مرتبة حسب المادة.
+   - المحاضرات: فيديوهات شرح.
+   - حقيبة الدفاتر وتقويم السادس والجدول الأسبوعي.
    - المنتدى: مكان لمناقشة الزملاء وتبادل الأسئلة.
-4. ذكّر دائماً بأن المكتبة والمحاضرات والمنتدى تُفتح بدفعة واحدة فقط بـ 250,000 د.ع مدى الحياة.
+4. المنتدى مجاني لكل الأعضاء. التفعيل يتم برمز يطلبه الطالب من صفحة الاشتراك.
 5. الإجابة دائماً قصيرة (٢-٤ جمل) وبلهجة عراقية ودودة ومشجّعة.
 6. لا تخترع أسعاراً أو ميزات. التزم بالأسعار والأقسام أعلاه فقط.
 `;
@@ -144,7 +191,7 @@ export async function POST(req: NextRequest) {
       try {
         for await (const chunk of askOpenAIStream({
           question,
-          subjectName: body.subjectName ?? null,
+          subjectName,
           ragContext,
           history,
           // Demo mode refuses to answer curriculum questions anyway — sending

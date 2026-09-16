@@ -23,8 +23,9 @@ export default function PrivacyEnPage() {
         We collect the following data only to deliver and improve the service:
         <br />- Account data: name, email, phone, governorate, study track.
         <br />- Usage data: login timestamps, subjects viewed, stored chats.
-        <br />- Payment data: handled entirely by PayPro Global. We never
-        store credit card details on our servers.
+        <br />- Payment data: there is no online payment inside the platform at
+        the moment; plans are activated with an activation code, so we store
+        no credit card details.
       </Section>
 
       <Section title="3. How We Use Your Data">
@@ -39,7 +40,6 @@ export default function PrivacyEnPage() {
         with:
         <br />- OpenAI (to process AI requests).
         <br />- Supabase (database hosting).
-        <br />- PayPro Global (payment processing).
         <br />All these providers are bound by strict data protection
         standards (GDPR / SOC 2).
       </Section>

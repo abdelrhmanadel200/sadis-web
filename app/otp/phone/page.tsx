@@ -12,12 +12,23 @@ import { supabase } from '@/lib/supabase';
  * /api/phone-otp/verify, which returns Supabase session tokens we hand to
  * supabase.auth.setSession(). Then we bounce to `next`.
  */
+/** Same-origin path only. Browsers read `/\evil.com` and `/<tab>/evil.com`
+ *  as `//evil.com`, so a prefix check is not enough: resolve it and compare
+ *  the origin (fixed base, so it also works during prerender). */
+function safeNext(raw: string): string {
+  if (!/^\/(?![\/\\])/.test(raw)) return '/chat';
+  try {
+    return new URL(raw, 'http://same.invalid').origin === 'http://same.invalid' ? raw : '/chat';
+  } catch {
+    return '/chat';
+  }
+}
+
 function PhoneOtpForm() {
   const router = useRouter();
   const params = useSearchParams();
   const phone = params.get('phone') || '';
-  const rawNext = params.get('next') ?? '';
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/chat';
+  const next = safeNext(params.get('next') ?? '');
 
   const [digits, setDigits] = useState<string[]>(Array(4).fill(''));
   const [loading, setLoading] = useState(false);

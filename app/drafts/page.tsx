@@ -41,25 +41,22 @@ interface Draft {
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#111827'];
 
 /**
- * تحميل صورة المسودة على الجهاز — الطالب يصوّر على الموبايل ويسحبها من اللابتوب.
- * نجلبها كـ blob لأن رابط التوقيع لا يحترم سمة download عبر النطاقات.
+ * تحميل صورة المسودة على الجهاز: الطالب يصور على الموبايل ويسحبها من اللابتوب.
+ * رابط موقع برأس Content-Disposition: attachment، فالمتصفح يحمل الملف بدون
+ * مغادرة الصفحة، وتطبيق أندرويد يفتحه في متصفح الجهاز فيحفظه.
  */
-async function downloadImage(d: Draft, url: string) {
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const ext = (d.image_path?.split('.').pop() || 'jpg').toLowerCase();
-    const safe = (d.title || 'مسودة').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60);
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${safe}.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  } catch {
-    alert('تعذّر تحميل الصورة، حاول مرة ثانية.');
+async function downloadImage(d: Draft) {
+  if (!d.image_path) return;
+  const ext = (d.image_path.split('.').pop() || 'jpg').toLowerCase();
+  const safe = (d.title || 'مسودة').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60);
+  const { data, error } = await supabase.storage
+    .from('drafts')
+    .createSignedUrl(d.image_path, 60 * 60, { download: `${safe}.${ext}` });
+  if (error || !data?.signedUrl) {
+    alert('تعذر تحميل الصورة، حاول مرة ثانية.');
+    return;
   }
+  window.location.href = data.signedUrl;
 }
 
 export default function DraftsPage() {
@@ -189,7 +186,7 @@ export default function DraftsPage() {
                     </button>
                     {urls[d.id] && (
                       <button
-                        onClick={() => downloadImage(d, urls[d.id])}
+                        onClick={() => downloadImage(d)}
                         className="p-2 rounded-lg hover:bg-primary/10 text-primary"
                         title="تحميل الصورة على الجهاز"
                       >

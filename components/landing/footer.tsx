@@ -1,14 +1,5 @@
 import Link from "next/link"
-import { 
-  Sparkles, 
-  Facebook, 
-  Instagram, 
-  MessageCircle,
-  Youtube,
-  Mail,
-  Phone,
-  MapPin
-} from "lucide-react"
+import { Sparkles, Mail, MapPin } from "lucide-react"
 
 const footerLinks = {
   platform: {
@@ -39,13 +30,6 @@ const footerLinks = {
   },
 }
 
-const socialLinks = [
-  { icon: Facebook, href: "#", label: "Facebook" },
-  { icon: Instagram, href: "#", label: "Instagram" },
-  { icon: MessageCircle, href: "#", label: "Telegram" },
-  { icon: Youtube, href: "#", label: "YouTube" },
-]
-
 export function Footer() {
   return (
     <footer className="py-16 border-t border-border">
@@ -74,13 +58,6 @@ export function Footer() {
               >
                 <Mail className="h-4 w-4 text-primary" />
                 <span>support@6thultra.com</span>
-              </a>
-              <a
-                href="tel:+9647801234567"
-                className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Phone className="h-4 w-4 text-primary" />
-                <span dir="ltr">+964 780 123 4567</span>
               </a>
               <div className="flex items-center gap-3 text-muted-foreground">
                 <MapPin className="h-4 w-4 text-primary" />
@@ -145,43 +122,9 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Social & Payment */}
         <div className="pt-8 border-t border-border">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            {/* Social Links */}
-            <div className="flex items-center gap-4">
-              {socialLinks.map((social) => (
-                <a
-                  key={social.label}
-                  href={social.href}
-                  className="h-10 w-10 rounded-lg glass flex items-center justify-center text-muted-foreground hover:text-primary hover:glow transition-all"
-                  aria-label={social.label}
-                >
-                  <social.icon className="h-5 w-5" />
-                </a>
-              ))}
-            </div>
-
-            {/* Payment Icons */}
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">طرق الدفع:</span>
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-12 glass rounded flex items-center justify-center">
-                  <div className="h-5 w-8 bg-gradient-to-r from-blue-600 to-blue-800 rounded-sm flex items-center justify-center">
-                    <span className="text-[6px] font-bold text-white">VISA</span>
-                  </div>
-                </div>
-                <div className="h-8 w-12 glass rounded flex items-center justify-center">
-                  <div className="h-5 w-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-sm flex items-center justify-center">
-                    <span className="text-[5px] font-bold text-white">MasterCard</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Android APK download */}
-          <div className="mt-8 flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-4">
             <span className="text-sm text-muted-foreground">حمّل التطبيق الآن</span>
             <a
               href="/sadis-ultra.apk"

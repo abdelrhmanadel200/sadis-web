@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 import { Mic, X, Volume2, VolumeX, Loader2, Square, Pause } from 'lucide-react';
 
 type VoiceState = 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -15,6 +17,7 @@ export default function VoicePage() {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [upgradeUrl, setUpgradeUrl] = useState<string | null>(null);
   const [history, setHistory] = useState<Turn[]>([]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -39,6 +42,7 @@ export default function VoicePage() {
 
   async function startListening() {
     setError(null);
+    setUpgradeUrl(null);
     if (state !== 'idle') return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -77,9 +81,17 @@ export default function VoicePage() {
       fd.append('audio', blob, 'voice.webm');
       fd.append('history', JSON.stringify(history));
 
-      const res = await fetch('/api/voice', { method: 'POST', body: fd });
+      // السيرفر يتحقق من الجلسة والاشتراك والحد اليومي، لذلك نرسل التوكن.
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/voice', {
+        method: 'POST',
+        body: fd,
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 401) setUpgradeUrl('/login?next=/voice');
+        else if (data.upgrade_url) setUpgradeUrl(data.upgrade_url);
         throw new Error(data.message || data.error || 'الخادم رجع خطأ');
       }
       const data = await res.json();
@@ -146,6 +158,11 @@ export default function VoicePage() {
           <div className="rounded-2xl px-4 py-3 text-sm"
                style={{ background: 'rgba(211,47,47,0.15)', color: '#FF6B6B' }}>
             {error}
+            {upgradeUrl && (
+              <Link href={upgradeUrl} className="block mt-2 font-bold underline">
+                {upgradeUrl.startsWith('/login') ? 'تسجيل الدخول' : 'فعل اشتراكك'}
+              </Link>
+            )}
           </div>
         )}
         {question && (

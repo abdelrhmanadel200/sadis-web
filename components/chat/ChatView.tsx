@@ -279,8 +279,9 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
     setAttachError(null);
     setSending(true);
 
-    // Prepare history for OpenAI (before the new user msg)
-    const history: HistoryMessage[] = messages.map((m) => ({
+    // Prepare history for OpenAI (before the new user msg). آخر 20 رسالة فقط،
+    // نفس حد السيرفر، حتى لا يكبر الطلب مع الجلسات الطويلة.
+    const history: HistoryMessage[] = messages.slice(-20).map((m) => ({
       role: m.role,
       content: m.content,
     }));
@@ -333,6 +334,19 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
               mm.id === botMsg.id ? { ...mm, content: msg, pending: false } : mm,
             ),
           );
+          if (sid) await saveMessage(sid, 'assistant', msg);
+          return;
+        }
+
+        // الحد اليومي (429) أو الحظر (403): رسالة السيرفر أوضح من خطأ عام.
+        if ((res.status === 429 || res.status === 403) && parsed?.message) {
+          const msg = parsed.message;
+          setMessages((m) =>
+            m.map((mm) =>
+              mm.id === botMsg.id ? { ...mm, content: msg, pending: false } : mm,
+            ),
+          );
+          // نحفظ الرد مثل فرع 402 حتى لا تظهر الجلسة بعد إعادة فتحها بسؤال بلا جواب.
           if (sid) await saveMessage(sid, 'assistant', msg);
           return;
         }
@@ -597,11 +611,13 @@ export default function ChatView({ subjectId: fixedSubjectId }: Props) {
           {attachError && (
             <p className="px-3 pt-2 text-xs text-red-400">{attachError}</p>
           )}
+          {/* نفس حد السؤال في السيرفر، فالطالب يرى الحد بدل قص صامت */}
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
+            maxLength={4000}
             rows={1}
             placeholder="اسأل الأستاذ ذكي..."
             className="w-full resize-none bg-transparent outline-none px-3 py-2 font-tajawal text-[15px] leading-relaxed max-h-[200px]"

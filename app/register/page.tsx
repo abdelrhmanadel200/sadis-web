@@ -1,13 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, User, ArrowLeft, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+// نفس فحص صفحة الدخول: مسار داخل الموقع فقط. المتصفح يقرأ /\evil.com و /<tab>/evil.com
+// كأنها //evil.com، لذلك نحل الرابط ونقارن الأصل بدل فحص البداية فقط.
+function safeNext(raw: string): string {
+  if (!/^\/(?![\/\\])/.test(raw)) return '/chat';
+  try {
+    return new URL(raw, 'http://same.invalid').origin === 'http://same.invalid' ? raw : '/chat';
+  } catch {
+    return '/chat';
+  }
+}
+
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // next داخل الموقع فقط، حتى لا تضيع الباقة المختارة بعد التسجيل.
+  const next = safeNext(searchParams.get('next') ?? '');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,7 +57,7 @@ export default function RegisterPage() {
           data: { name: name || null },
           emailRedirectTo:
             typeof window !== 'undefined'
-              ? `${window.location.origin}/chat`
+              ? `${window.location.origin}${next}`
               : undefined,
         },
       });
@@ -43,7 +65,9 @@ export default function RegisterPage() {
       if (typeof window !== 'undefined' && name) {
         sessionStorage.setItem('pending-profile-name', name);
       }
-      router.push(`/otp?email=${encodeURIComponent(value)}&mode=register`);
+      router.push(
+        `/otp?email=${encodeURIComponent(value)}&mode=register&next=${encodeURIComponent(next)}`,
+      );
     } catch (err: any) {
       setError(err?.message || 'تعذّر إرسال الكود، حاول مرة ثانية');
     } finally {
@@ -127,7 +151,10 @@ export default function RegisterPage() {
 
           <div className="mt-6 text-center text-sm text-muted">
             عندك حساب؟{' '}
-            <Link href="/login" className="text-primary-light font-semibold">
+            <Link
+              href={next === '/chat' ? '/login' : `/login?next=${encodeURIComponent(next)}`}
+              className="text-primary-light font-semibold"
+            >
               سجّل دخولك
             </Link>
           </div>

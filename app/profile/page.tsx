@@ -8,11 +8,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import type { Profile } from '@/lib/types';
-import { ContactSection, PasswordSection, SubscriptionSection } from '@/components/account/AccountSections';
+import { ContactSection, SubscriptionSection } from '@/components/account/AccountSections';
 import {
   User,
-  Phone,
-  Mail,
   Moon,
   Sun,
   LogOut,
@@ -29,44 +27,55 @@ export default function ProfilePage() {
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
   const [branch, setBranch] = useState<'scientific' | 'literary'>('scientific');
+  // الفرع يثبت فقط إن اختاره الطالب هنا، وإلا تبقى نافذة اختيار الفرع تظهر له.
+  const [branchTouched, setBranchTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // نربط التحميل بمعرف المستخدم لا بكائن الجلسة: تجديد التوكن ينشئ كائنا جديدا
+  // ولا يجب أن يعيد تحميل الصفحة أو يمسح تعديلات لم تحفظ.
+  const userId = user?.id;
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     (async () => {
       setLoading(true);
       const { data } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', userId)
         .maybeSingle();
       if (data) {
         setProfile(data as Profile);
         setName(data.name ?? '');
         setCity(data.city ?? '');
         setBranch((data.branch as any) ?? 'scientific');
+        setBranchTouched(false);
       } else {
         // Defensive: create the profile row if the trigger didn't (older users)
         const { data: created } = await supabase
           .from('profiles')
-          .insert({ id: user.id })
+          .insert({ id: userId })
           .select()
           .maybeSingle();
         if (created) setProfile(created as Profile);
       }
       setLoading(false);
     })();
-  }, [user]);
+  }, [userId]);
 
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
     setMsg(null);
+    const patch: Record<string, unknown> = { name, city };
+    if (branchTouched) {
+      patch.branch = branch;
+      patch.branch_confirmed = true;
+    }
     const { error } = await supabase
       .from('profiles')
-      .update({ name, city, branch, branch_confirmed: true })
+      .update(patch)
       .eq('id', user.id);
     if (error) setMsg('حدث خطأ أثناء الحفظ');
     else setMsg('تم الحفظ بنجاح');
@@ -88,24 +97,7 @@ export default function ProfilePage() {
           </div>
           <div>
             <h1 className="font-cairo font-extrabold text-3xl">حسابي</h1>
-            {user?.email && (
-              <p className="text-muted text-sm flex items-center gap-1.5 mt-1">
-                <Mail className="w-4 h-4" />
-                <span dir="ltr">{user.email}</span>
-              </p>
-            )}
-            {user?.phone && (
-              <p className="text-muted text-sm flex items-center gap-1.5 mt-1">
-                <Phone className="w-4 h-4" />
-                <span dir="ltr">{user.phone}</span>
-              </p>
-            )}
-            {!user?.email && !user?.phone && (
-              <p className="text-muted text-sm flex items-center gap-1.5 mt-1">
-                <Mail className="w-4 h-4" />
-                <span dir="ltr">—</span>
-              </p>
-            )}
+            <p className="text-muted text-sm mt-1">بياناتك وطرق الدخول واشتراكك</p>
           </div>
         </header>
 
@@ -146,7 +138,10 @@ export default function ProfilePage() {
                     ).map((o) => (
                       <button
                         key={o.v}
-                        onClick={() => setBranch(o.v)}
+                        onClick={() => {
+                          setBranch(o.v);
+                          setBranchTouched(true);
+                        }}
                         className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold border transition ${
                           branch === o.v
                             ? 'bg-primary text-white border-primary'
@@ -200,7 +195,6 @@ export default function ProfilePage() {
             </section>
 
             {user && <ContactSection user={user} profilePhone={(profile?.phone as string | null) ?? null} />}
-            {user && <PasswordSection user={user} />}
             {user && <SubscriptionSection user={user} />}
 
             <button

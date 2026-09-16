@@ -55,7 +55,10 @@ export default function ActivationRequestPage() {
   const [refNotice, setRefNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/login');
+    // يرجع لنفس الصفحة بنفس الباقة بعد الدخول، بدل الدردشة.
+    if (!authLoading && !user) {
+      router.replace('/login?next=' + encodeURIComponent(window.location.pathname + window.location.search));
+    }
   }, [authLoading, user, router]);
 
   // Prefill name/phone from the profile if available.

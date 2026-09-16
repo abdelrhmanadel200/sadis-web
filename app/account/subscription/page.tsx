@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { computeEntitlements, type Entitlements, type SubRow } from '@/lib/entitlements';
 import type { User } from '@supabase/supabase-js';
 
 interface SubscriptionPlan {
@@ -54,6 +55,8 @@ function SubscriptionPageInner() {
   const zaincashStatus = searchParams.get('zaincash');
 
   const [currentSub, setCurrentSub] = useState<Subscription | null>(null);
+  const [pendingSub, setPendingSub] = useState<Subscription | null>(null);
+  const [ent, setEnt] = useState<Entitlements | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,15 +78,23 @@ function SubscriptionPageInner() {
   async function loadData(u: User) {
     setLoading(true);
     try {
-      // Active subscription (if any).
+      // كل صفوف الطالب: باقة 25 ألف تمنح الأقسام سنة والذكاء شهرا، والمهمة
+      // اليومية تحول صفها إلى expired بعد الشهر رغم أن الأقسام مستمرة. لذلك
+      // الحالة تحسب من الاستحقاقات لا من تاريخ انتهاء صف واحد.
       const { data: subRows } = await supabase
         .from('subscriptions')
         .select('*, plan:subscription_plans(*)')
         .eq('user_id', u.id)
-        .in('status', ['active', 'pending'])
-        .order('expires_at', { ascending: false })
-        .limit(1);
-      setCurrentSub((subRows?.[0] as Subscription) ?? null);
+        .order('starts_at', { ascending: false, nullsFirst: false });
+      const rows = (subRows ?? []) as Subscription[];
+      setEnt(computeEntitlements(rows as SubRow[]));
+      const counted = rows.filter((r) => r.status === 'active' || r.status === 'expired');
+      setCurrentSub(
+        counted.find((r) => r.plan_id === 'chat_monthly' || r.plan_id === 'lifetime_access') ??
+          counted[0] ??
+          null,
+      );
+      setPendingSub(rows.find((r) => r.status === 'pending') ?? null);
 
       // Available plans.
       const { data: planRows } = await supabase
@@ -109,10 +120,7 @@ function SubscriptionPageInner() {
   }
   if (!user) return null;
 
-  const isActive =
-    currentSub?.status === 'active' &&
-    currentSub.expires_at &&
-    new Date(currentSub.expires_at) > new Date();
+  const isActive = Boolean(ent && (ent.sectionsActive || ent.aiActive));
 
   return (
     <main className="min-h-screen bg-background text-foreground" dir="rtl">
@@ -156,9 +164,9 @@ function SubscriptionPageInner() {
         {/* Current subscription */}
         <section className="mb-12">
           <h2 className="text-xl font-bold mb-4">باقتك الحالية</h2>
-          {isActive && currentSub ? (
-            <ActiveCard sub={currentSub} />
-          ) : currentSub?.status === 'pending' ? (
+          {isActive && currentSub && ent ? (
+            <ActiveCard sub={currentSub} ent={ent} />
+          ) : pendingSub ? (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6">
               <p className="font-semibold mb-1">طلبك تحت المراجعة</p>
               <p className="text-sm text-muted-foreground">
@@ -187,7 +195,7 @@ function SubscriptionPageInner() {
               <PlanCard
                 key={plan.id}
                 plan={plan}
-                isCurrent={currentSub?.plan_id === plan.id && Boolean(isActive)}
+                isCurrent={currentSub?.plan_id === plan.id && Boolean(ent?.sectionsActive)}
               />
             ))}
             {/* إعادة تعبئة الذكاء الاصطناعي: للطالب الذي انتهى شهر الذكاء عنده
@@ -224,7 +232,7 @@ function SubscriptionPageInner() {
         </section>
 
         <p className="text-xs text-muted-foreground mt-10 text-center">
-          الدفع يتم عبر PayPro Global بشكل آمن. لمراجعة سياسة الاسترجاع{' '}
+          تفعيل الباقات يتم عبر رمز تستلمه من فريق التفعيل. لمراجعة سياسة الاسترجاع{' '}
           <Link href="/refund" className="text-primary underline">
             اضغط هنا
           </Link>
@@ -261,10 +269,15 @@ function planDesc(id?: string | null, fallback?: string | null): string | null {
   return (id && PLAN_LABELS[id]?.desc) || fallback || null;
 }
 
-function ActiveCard({ sub }: { sub: Subscription }) {
-  const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
-  const daysLeft = expiresAt
-    ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 86_400_000))
+function fmtDate(iso: string | null | undefined): string {
+  return iso ? new Date(iso).toLocaleDateString('ar-IQ') : '-';
+}
+
+function ActiveCard({ sub, ent }: { sub: Subscription; ent: Entitlements }) {
+  // الأيام المتبقية من سنة الأقسام، لا من شهر الذكاء المخزن في صف الاشتراك.
+  const endIso = ent.sectionsExpiresAt ?? ent.aiExpiresAt;
+  const daysLeft = endIso
+    ? Math.max(0, Math.ceil((new Date(endIso).getTime() - Date.now()) / 86_400_000))
     : 0;
 
   return (
@@ -288,11 +301,18 @@ function ActiveCard({ sub }: { sub: Subscription }) {
           {planDesc(sub.plan_id, sub.plan?.description_ar)}
         </p>
       )}
-      <div className="flex flex-wrap gap-4 text-sm">
+      <div className="grid sm:grid-cols-3 gap-3 text-sm">
         <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Calendar className="w-4 h-4" />
-          ينتهي:{' '}
-          {expiresAt ? expiresAt.toLocaleDateString('ar-IQ') : '—'}
+          <Calendar className="w-4 h-4 shrink-0" />
+          بدأ: {fmtDate(sub.starts_at)}
+        </div>
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Calendar className="w-4 h-4 shrink-0" />
+          الأقسام: {ent.sectionsActive ? `حتى ${fmtDate(ent.sectionsExpiresAt)}` : 'غير مفعلة'}
+        </div>
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Calendar className="w-4 h-4 shrink-0" />
+          الأستاذ ذكي: {ent.aiActive ? `حتى ${fmtDate(ent.aiExpiresAt)}` : 'منتهي، جدده برمز إعادة التعبئة'}
         </div>
       </div>
     </div>

@@ -50,9 +50,12 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
 
-  // Auth guard
+  // Auth guard: نمرر الصفحة الحالية (مع الاستعلام) في next ليرجع إليها بعد الدخول.
   useEffect(() => {
-    if (!loading && !user) router.replace('/login');
+    if (!loading && !user) {
+      const here = window.location.pathname + window.location.search;
+      router.replace('/login?next=' + encodeURIComponent(here));
+    }
   }, [user, loading, router]);
 
   // Load chat sessions
