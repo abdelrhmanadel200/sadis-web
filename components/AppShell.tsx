@@ -30,6 +30,7 @@ import {
   Newspaper,
   ListVideo,
   Handshake,
+  ReceiptText,
 } from 'lucide-react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -189,7 +190,8 @@ export default function AppShell({ children, fullHeight }: AppShellProps) {
             <span>المنتدى</span>
           </a>
           <NavLink href="/library" active={pathname === '/library'} icon={<Library className="w-5 h-5" />} label="مكتبتي" />
-          <NavLink href="/store" active={pathname.startsWith('/store')} icon={<ShoppingBag className="w-5 h-5" />} label="المتجر" />
+          <NavLink href="/store" active={pathname.startsWith('/store') && !pathname.startsWith('/store/orders')} icon={<ShoppingBag className="w-5 h-5" />} label="المتجر" />
+          <NavLink href="/store/orders" active={pathname.startsWith('/store/orders')} icon={<ReceiptText className="w-5 h-5" />} label="طلباتي" />
           <NavLink href="/affiliate" active={pathname.startsWith('/affiliate')} icon={<Handshake className="w-5 h-5" />} label="نظام المسوّقين" />
           <NavLink href="/account/subscription" active={pathname.startsWith('/account/subscription')} icon={<Crown className="w-5 h-5" />} label="الاشتراك" />
           <NavLink href="/profile" active={pathname.startsWith('/profile')} icon={<User className="w-5 h-5" />} label="حسابي" />

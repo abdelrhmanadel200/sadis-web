@@ -9,8 +9,10 @@ import { supabase } from '@/lib/supabase';
 /**
  * Phone OTP verification. Reached from /login after an SMS is sent via
  * /api/phone-otp/send. A 4-digit code is verified through
- * /api/phone-otp/verify, which returns Supabase session tokens we hand to
- * supabase.auth.setSession(). Then we bounce to `next`.
+ * /api/phone-otp/verify (exchange: 'client'), which returns a magic-link
+ * token_hash we exchange with supabase.auth.verifyOtp() from the browser.
+ * Older servers returned tokens directly, so setSession() stays as a fallback.
+ * Then we bounce to `next`.
  */
 /** Same-origin path only. Browsers read `/\evil.com` and `/<tab>/evil.com`
  *  as `//evil.com`, so a prefix check is not enough: resolve it and compare
@@ -103,20 +105,31 @@ function PhoneOtpForm() {
       const res = await fetch('/api/phone-otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, code }),
+        body: JSON.stringify({ phone, code, exchange: 'client' }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.message || 'الرمز غير صحيح');
         return;
       }
-      // Establish the Supabase session from the returned tokens.
-      const { error: sessErr } = await supabase.auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      });
+      // الجلسة من token_hash (الطريقة الجديدة)، أو من التوكنات مباشرة (توافق).
+      let sessErr: unknown = null;
+      if (data.token_hash) {
+        ({ error: sessErr } = await supabase.auth.verifyOtp({
+          token_hash: data.token_hash,
+          type: 'magiclink',
+        }));
+      } else if (data.access_token && data.refresh_token) {
+        ({ error: sessErr } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        }));
+      } else {
+        sessErr = new Error('no session');
+      }
       if (sessErr) {
-        setError('تعذّر إنشاء الجلسة، حاول مرة ثانية');
+        // الرمز استخدم على السيرفر، فالمحاولة الجديدة تحتاج رمزا جديدا.
+        setError('تعذر إنشاء الجلسة، اطلب رمز جديد وحاول مرة ثانية');
         return;
       }
       if (next.startsWith('/api/')) {

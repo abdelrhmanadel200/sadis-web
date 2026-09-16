@@ -3,7 +3,8 @@
 // Body: { phone: string }   // E.164 with or without leading +, e.g. "+9647700000000" or "20100..."
 // - Generates a 4-digit OTP, stores a hashed copy in `phone_otp_codes`.
 // - Sends the code over SMS via OTPIQ (provider: "sms").
-// - Throttled to 1 SMS / 60s and 10 SMS / 24h per phone.
+// - Throttled to 1 SMS / 60s and 10 SMS / 24h per phone, and 20 SMS / hour per
+//   client IP (auth_attempt_claim; if that check fails we still send).
 
 import { NextRequest } from 'next/server';
 import {
@@ -12,6 +13,7 @@ import {
   hashCode,
   normalizePhone,
 } from '@/lib/phone-otp';
+import { attemptKey, claimAttempt, clientIp, minutesText } from '@/lib/auth-server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,6 +28,11 @@ const RATE_LIMIT_MAX = 1;
 // سقف يومي لكل رقم: يحد تكلفة الرسائل ومحاولات تخمين الرمز عبر رموز جديدة.
 const DAILY_WINDOW_SECONDS = 24 * 60 * 60;
 const DAILY_MAX = 10;
+// سقف لكل IP: يحد إرسال رسائل لأرقام كثيرة من نفس المكان. سخي لأن شبكات
+// الموبايل في العراق تشارك IP واحد بين طلاب كثيرين.
+const IP_WINDOW_SECONDS = 60 * 60;
+const IP_MAX = 20;
+const IP_LOCK_SECONDS = 60 * 60;
 // How long a freshly-generated code is valid.
 const CODE_TTL_SECONDS = 300;
 
@@ -47,7 +54,8 @@ export async function POST(req: NextRequest) {
   const phoneRaw = (body.phone || '').trim();
   const phone = normalizePhone(phoneRaw);
   // 10-15 digits per OTPIQ spec; covers IQ (+964…), EG (+20…), etc.
-  if (!/^[0-9]{10,15}$/.test(phone)) {
+  // رقم يبدأ بصفر بعد التوحيد ليس رقما دوليا صالحا.
+  if (!/^[0-9]{10,15}$/.test(phone) || phone.startsWith('0')) {
     return bad('رقم الهاتف غير صالح');
   }
 
@@ -76,6 +84,24 @@ export async function POST(req: NextRequest) {
   }
   if ((recentCount ?? 0) >= RATE_LIMIT_MAX) {
     return bad('انتظر قليلاً قبل إعادة إرسال الرمز', 429);
+  }
+
+  // سقف الـ IP بعد فحوص الرقم، فالطلب المرفوض أعلاه لا يحسب. عطل القاعدة هنا لا يمنع الإرسال.
+  const ipClaim = await claimAttempt(
+    supa,
+    attemptKey('otpsend:ip', clientIp(req)),
+    IP_MAX,
+    IP_WINDOW_SECONDS,
+    IP_LOCK_SECONDS,
+  );
+  if (!ipClaim.ok) {
+    console.error('phone-otp/send: ip claim failed, sending anyway', ipClaim.error);
+  } else if (!ipClaim.allowed) {
+    const retryAfter = Math.max(1, ipClaim.retryAfter);
+    return bad(`طلبات كثيرة من نفس الشبكة، حاول بعد ${minutesText(retryAfter)}`, 429, {
+      code: 'locked',
+      retry_after: retryAfter,
+    });
   }
 
   const code = generateCode();

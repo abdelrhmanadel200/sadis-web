@@ -129,7 +129,7 @@ const baseLayout = (title: string, body: string, ctaUrl?: string, ctaLabel?: str
           }
         </td></tr>
         <tr><td style="padding:20px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:right;font-size:12px;color:#64748b;line-height:1.7;">
-          <div>سادس ألترا — منصة تعليمية للمنهج العراقي السادس الإعدادي.</div>
+          <div>سادس ألترا، منصة تعليمية للمنهج العراقي السادس الإعدادي.</div>
           <div style="margin-top:6px;">للدعم: <a href="mailto:support@6thultra.com" style="color:#0369a1;">support@6thultra.com</a></div>
           <div style="margin-top:6px;">
             <a href="${APP_BASE}/privacy" style="color:#64748b;text-decoration:underline;">الخصوصية</a>
@@ -158,7 +158,7 @@ export function subscriptionActivatedEmail(opts: {
   `;
   return sendEmail({
     to: opts.to,
-    subject: `تأكيد تفعيل اشتراك سادس ألترا — ${opts.planName}`,
+    subject: `تأكيد تفعيل اشتراك سادس ألترا: ${opts.planName}`,
     html: baseLayout(
       'تم تفعيل اشتراكك',
       body,
@@ -169,23 +169,59 @@ export function subscriptionActivatedEmail(opts: {
   });
 }
 
+/**
+ * تنبيه قبل الانتهاء.
+ * kind = 'ai': ينتهي شهر الأستاذ ذكي فقط (الأقسام مستمرة)، والحل رمز إعادة التعبئة.
+ * kind = 'plan': تنتهي الباقة نفسها (أقسام المنصة).
+ */
 export function subscriptionExpiryWarningEmail(opts: {
   to: string;
   planName: string;
   daysLeft: number;
+  kind?: 'ai' | 'plan';
+  /** للتنبيه من نوع ai: الأقسام مفعلة حتى هذا التاريخ. */
+  sectionsUntil?: Date | null;
+  /** للتنبيه من نوع plan: الباقة تشمل الأستاذ ذكي أيضا (السنوية). */
+  withAi?: boolean;
 }) {
+  const days = `${opts.daysLeft} أيام`;
+  const fmt = (d: Date) => d.toLocaleDateString('ar-IQ', { timeZone: 'Asia/Baghdad' });
+
+  if (opts.kind === 'ai') {
+    const body = `
+      <p>ينتهي شهر <strong>الأستاذ ذكي</strong> في اشتراكك خلال <strong>${days}</strong>.</p>
+      ${
+        opts.sectionsUntil
+          ? `<p>أقسام المنصة تبقى مفعلة عندك حتى <strong>${fmt(opts.sectionsUntil)}</strong>، فلا تحتاج لشراء الباقة من جديد.</p>`
+          : ''
+      }
+      <p>لتستمر مع الأستاذ ذكي اطلب <strong>رمز إعادة التعبئة</strong> وادخله في صفحة الاشتراك. الشهر الجديد يبدأ بعد انتهاء الشهر الحالي، فلا تخسر أي يوم.</p>
+    `;
+    return sendEmail({
+      to: opts.to,
+      subject: `شهر الأستاذ ذكي في سادس ألترا ينتهي خلال ${days}`,
+      html: baseLayout(
+        'شهر الأستاذ ذكي ينتهي قريبا',
+        body,
+        `${APP_BASE}/activation-request?plan=ai_refill`,
+        'طلب رمز إعادة التعبئة',
+      ),
+      tag: 'ai_month_expiry_warning',
+    });
+  }
+
   const body = `
-    <p>تنتهي صلاحية باقة <strong>${opts.planName}</strong> خلال <strong>${opts.daysLeft} أيام</strong>.</p>
-    <p>جدّد اشتراكك الآن لتستمر بدون انقطاع وتحافظ على وصولك لكل المواد والمميزات.</p>
+    <p>تنتهي <strong>${opts.planName}</strong> (${opts.withAi ? 'أقسام المنصة والأستاذ ذكي' : 'أقسام المنصة'}) خلال <strong>${days}</strong>.</p>
+    <p>اطلب رمز تجديد الباقة وادخله في صفحة الاشتراك لتستمر بدون انقطاع وتحافظ على وصولك ${opts.withAi ? 'لكل الأقسام والأستاذ ذكي' : 'لكل الأقسام'}.</p>
   `;
   return sendEmail({
     to: opts.to,
-    subject: `اشتراك سادس ألترا ينتهي خلال ${opts.daysLeft} أيام`,
+    subject: `باقتك في سادس ألترا تنتهي خلال ${days}`,
     html: baseLayout(
-      'اشتراكك ينتهي قريباً',
+      'باقتك تنتهي قريبا',
       body,
       `${APP_BASE}/account/subscription`,
-      'تجديد الاشتراك',
+      'تجديد الباقة',
     ),
     tag: 'subscription_expiry_warning',
   });

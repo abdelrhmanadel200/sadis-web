@@ -10,7 +10,7 @@ export default function PrivacyEnPage() {
     <LegalLayout
       lang="en"
       title="Privacy Policy"
-      lastUpdated="2026-05-13"
+      lastUpdated="2026-09-16"
       switchHref="/privacy"
     >
       <Section title="1. Introduction">
@@ -23,6 +23,10 @@ export default function PrivacyEnPage() {
         We collect the following data only to deliver and improve the service:
         <br />- Account data: name, email, phone, governorate, study track.
         <br />- Usage data: login timestamps, subjects viewed, stored chats.
+        <br />- Store order data: the recipient&apos;s name, phone number,
+        governorate, area and delivery address. We collect it only to deliver
+        your orders, and only the store team that prepares and delivers the
+        order can see it.
         <br />- Payment data: there is no online payment inside the platform at
         the moment; plans are activated with an activation code, so we store
         no credit card details.

@@ -6,28 +6,19 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, MapPin, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { GOVERNORATES, normalizeIraqPhone } from '@/lib/iraq';
 
-const GOVERNORATES = [
-  'بغداد', 'البصرة', 'نينوى', 'أربيل', 'النجف', 'كربلاء', 'بابل',
-  'ذي قار', 'الأنبار', 'ديالى', 'كركوك', 'واسط', 'صلاح الدين',
-  'القادسية', 'المثنى', 'ميسان', 'دهوك', 'السليمانية', 'حلبجة',
-];
-
-// أنواع الأكواد الثلاثة — يطلب الطالب أيّاً منها ويسلّمه فريق التفعيل الكود.
+// أنواع الأكواد الثلاثة، يطلب الطالب أيا منها ويسلمه فريق التفعيل الكود.
 const PLANS = [
-  { id: 'chat_monthly', label: 'كود تشغيل أقسام الموقع + شهر ذكاء اصطناعي' },
-  { id: 'ai_refill', label: 'كود إعادة تعبئة الذكاء الاصطناعي (شهر)' },
-  { id: 'lifetime_access', label: 'كود تشغيل الذكاء الاصطناعي سنة كاملة' },
+  { id: 'chat_monthly', label: 'الباقة الأساسية 25 ألف: كل الأقسام سنة + الأستاذ ذكي شهر' },
+  { id: 'lifetime_access', label: 'الباقة السنوية 250 ألف: كل الأقسام والأستاذ ذكي سنة' },
+  { id: 'ai_refill', label: 'إعادة تعبئة الأستاذ ذكي شهر' },
 ];
 
-// Iraqi-aware phone normalizer (matches login/page.tsx).
-function normalizePhone(raw: string): string | null {
-  let p = raw.replace(/[\s\-()]/g, '');
-  if (p.startsWith('00')) p = '+' + p.slice(2);
-  if (p.startsWith('+')) return /^\+\d{8,15}$/.test(p) ? p : null;
-  if (p.startsWith('0')) p = p.slice(1);
-  if (/^\d{9,10}$/.test(p)) return '+964' + p;
-  return null;
+// رقم الملف الشخصي محفوظ بدون + (مثل 9647701234567)، يعرض بالصيغة المحلية 07...
+function toLocalPhone(raw: string | null | undefined): string {
+  const e164 = normalizeIraqPhone(raw);
+  return e164 ? '0' + e164.slice(4) : (raw ?? '');
 }
 
 export default function ActivationRequestPage() {
@@ -35,33 +26,36 @@ export default function ActivationRequestPage() {
   const router = useRouter();
 
   const [fullName, setFullName] = useState('');
-  const [governorate, setGovernorate] = useState('بغداد');
+  const [governorate, setGovernorate] = useState<string>('بغداد');
   const [area, setArea] = useState('');
   const [phone, setPhone] = useState('');
   const [planId, setPlanId] = useState('chat_monthly');
+  // مصدر الطلب: التطبيق يفتح الصفحة بـ ?src=app
+  const [source, setSource] = useState<'web' | 'app'>('web');
 
-  // Preselect the code type when arriving from a plan card
-  // (e.g. /activation-request?plan=lifetime_access). Read from
-  // window.location to avoid a useSearchParams Suspense boundary.
+  // نوع الكود من بطاقة الباقة (?plan=lifetime_access) ومصدر الطلب.
+  // القراءة من window.location لتجنب حاجة useSearchParams إلى Suspense.
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search).get('plan');
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get('plan');
     if (p && PLANS.some((x) => x.id === p)) setPlanId(p);
+    if (params.get('src') === 'app') setSource('app');
   }, []);
   const [refCode, setRefCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  // Non-blocking notice when the optional marketer code was rejected.
+  // تنبيه غير مانع إذا رفض كود المسوق الاختياري.
   const [refNotice, setRefNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    // يرجع لنفس الصفحة بنفس الباقة بعد الدخول، بدل الدردشة.
+    // يرجع لنفس الصفحة بنفس الباقة والمصدر بعد الدخول، بدل الدردشة.
     if (!authLoading && !user) {
       router.replace('/login?next=' + encodeURIComponent(window.location.pathname + window.location.search));
     }
   }, [authLoading, user, router]);
 
-  // Prefill name/phone from the profile if available.
+  // تعبئة الاسم والرقم من الملف الشخصي أو من رقم حساب الدخول.
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -71,7 +65,8 @@ export default function ActivationRequestPage() {
         .eq('id', user.id)
         .maybeSingle();
       if (data?.name) setFullName((v) => v || (data.name as string));
-      if (data?.phone) setPhone((v) => v || (data.phone as string));
+      const rawPhone = (data?.phone as string | null | undefined) || user.phone || '';
+      if (rawPhone) setPhone((v) => v || toLocalPhone(rawPhone));
     })();
   }, [user]);
 
@@ -79,18 +74,20 @@ export default function ActivationRequestPage() {
     e.preventDefault();
     setError(null);
     if (!user) {
-      setError('سجّل دخولك أولاً.');
+      setError('سجل دخولك أولا.');
       return;
     }
     const name = fullName.trim();
     const ar = area.trim();
     if (!name) return setError('أدخل اسمك الكامل.');
     if (!ar) return setError('أدخل المنطقة.');
-    const normalized = normalizePhone(phone);
-    if (!normalized) return setError('أدخل رقم هاتف صحيح.');
+    const normalized = normalizeIraqPhone(phone);
+    if (!normalized) return setError('أدخل رقم موبايل عراقي صحيح، مثل 07701234567.');
 
     setBusy(true);
     try {
+      // بدون select: الطالب لا يقرأ جدول الطلبات، والطلب المكرر لنفس النوع
+      // يدمج مع الطلب المفتوح بدون خطأ.
       const { error: insErr } = await supabase.from('subscription_requests').insert({
         user_id: user.id,
         full_name: name.slice(0, 120),
@@ -99,12 +96,21 @@ export default function ActivationRequestPage() {
         phone: normalized,
         plan_id: planId,
         status: 'pending',
+        source,
       });
-      if (insErr) throw insErr;
-      // Best-effort referral attribution (affiliate system) — the RPC enforces
-      // all rules (first-wins, no self-referral, no existing subscribers) and
-      // returns a boolean verdict. A rejected code must not block the request,
-      // but the student deserves to know it didn't count.
+      if (insErr) {
+        console.error('subscription_requests insert', insErr);
+        if (insErr.code === '23505') {
+          setError('لديك طلب قيد المراجعة لنفس نوع الكود، سيتواصل معك فريق التفعيل.');
+        } else if (/[ء-ي]/.test(insErr.message || '')) {
+          setError(insErr.message);
+        } else {
+          setError('تعذر إرسال الطلب، حاول مرة ثانية.');
+        }
+        return;
+      }
+      // ربط المسوق (اختياري): الدالة تطبق كل الشروط (أول ربط فقط، لا ربط ذاتي،
+      // لا مشتركين سابقين). رفض الكود لا يوقف الطلب لكن نخبر الطالب.
       const code = refCode.trim();
       if (code) {
         try {
@@ -114,16 +120,17 @@ export default function ActivationRequestPage() {
           });
           if (refErr || accepted !== true) {
             setRefNotice(
-              'ملاحظة: كود المسوّق لم يُقبل (غير صالح أو سبق ربط حسابك) — تم إرسال طلبك بشكل طبيعي بدونه.',
+              'ملاحظة: كود المسوق لم يقبل (غير صالح أو سبق ربط حسابك). تم إرسال طلبك بشكل طبيعي بدونه.',
             );
           }
         } catch {
-          setRefNotice('ملاحظة: تعذّر التحقق من كود المسوّق — تم إرسال طلبك بشكل طبيعي.');
+          setRefNotice('ملاحظة: تعذر التحقق من كود المسوق. تم إرسال طلبك بشكل طبيعي.');
         }
       }
       setDone(true);
-    } catch {
-      setError('تعذّر إرسال الطلب، حاول مرة ثانية.');
+    } catch (err) {
+      console.error(err);
+      setError('تعذر إرسال الطلب، حاول مرة ثانية.');
     } finally {
       setBusy(false);
     }
@@ -131,7 +138,7 @@ export default function ActivationRequestPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground" dir="rtl">
-      <div className="max-w-xl mx-auto px-5 py-10">
+      <div className="max-w-xl mx-auto px-4 sm:px-5 py-10">
         <Link
           href="/account/subscription"
           className="inline-flex items-center gap-2 text-sm text-muted hover:opacity-80 mb-6"
@@ -145,9 +152,9 @@ export default function ActivationRequestPage() {
             <div className="mx-auto w-20 h-20 rounded-full bg-emerald-500/15 flex items-center justify-center mb-6">
               <CheckCircle2 className="w-10 h-10 text-emerald-500" />
             </div>
-            <h1 className="text-2xl font-bold mb-3">تم استلام طلبك</h1>
+            <h1 className="text-2xl font-bold mb-3">تم إرسال طلب التفعيل</h1>
             <p className="text-muted leading-relaxed mb-6">
-              سيتواصل معك فريق التفعيل على رقمك لتسليمك رمز التفعيل. شكراً لك.
+              تم استلام طلبك، سيتواصل معك فريق التفعيل على رقمك. إذا كان عندك طلب سابق لنفس النوع حدثنا بياناته.
             </p>
             {refNotice && (
               <p className="text-sm text-amber-500 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-2.5 mb-6">
@@ -158,7 +165,7 @@ export default function ActivationRequestPage() {
               href="/account/subscription"
               className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold bg-primary text-primary-foreground hover:opacity-90 transition"
             >
-              العودة لصفحة الاشتراك
+              متابعة طلباتي في صفحة الاشتراك
             </Link>
           </div>
         ) : (
@@ -169,7 +176,7 @@ export default function ActivationRequestPage() {
               </div>
               <h1 className="text-2xl font-bold mb-2 text-center">إرسال كود التفعيل لعنواني</h1>
               <p className="text-muted text-center leading-relaxed">
-                املأ بياناتك ليتواصل معك فريق التفعيل ويسلّمك رمز التفعيل.
+                املأ بياناتك ليتواصل معك فريق التفعيل ويسلمك رمز التفعيل.
               </p>
             </header>
 
@@ -179,6 +186,7 @@ export default function ActivationRequestPage() {
                 <input
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
+                  autoComplete="name"
                   className="w-full rounded-xl border border-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary"
                 />
               </div>
@@ -208,13 +216,16 @@ export default function ActivationRequestPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-1.5">رقم الهاتف</label>
+                <label className="block text-sm font-semibold mb-1.5">رقم الموبايل</label>
                 <input
                   dir="ltr"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="07XXXXXXXXX"
-                  className="w-full rounded-xl border border-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary"
+                  className="w-full rounded-xl border border-border bg-card/40 px-4 py-2.5 text-sm text-left outline-none focus:border-primary"
                 />
               </div>
 
@@ -233,13 +244,14 @@ export default function ActivationRequestPage() {
 
               <div>
                 <label className="block text-sm font-semibold mb-1.5">
-                  كود المسوّق (اختياري)
+                  كود المسوق (اختياري)
                 </label>
                 <input
                   dir="ltr"
                   value={refCode}
                   onChange={(e) => setRefCode(e.target.value)}
-                  placeholder="إذا رشّحك أحد المسوّقين، اكتب كوده هنا"
+                  autoComplete="off"
+                  placeholder="إذا رشحك أحد المسوقين، اكتب كوده هنا"
                   className="w-full rounded-xl border border-border bg-card/40 px-4 py-2.5 text-sm outline-none focus:border-primary font-mono"
                 />
               </div>

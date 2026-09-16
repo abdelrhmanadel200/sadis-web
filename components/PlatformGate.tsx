@@ -9,7 +9,7 @@ import { computeEntitlements, type SubRow } from '@/lib/entitlements';
 
 /**
  * Client-side gate for the paid community sections (library, lectures,
- * books, store, forum). A section is unlocked only when the signed-in user
+ * books). The supplies store and the forum are public. A section is unlocked only when the signed-in user
  * has an ACTIVE `lifetime_access` subscription (the yearly platform
  * activation). Everyone else — including brand-new sign-ups — sees a
  * subscribe prompt instead of the content.

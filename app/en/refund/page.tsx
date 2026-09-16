@@ -10,7 +10,7 @@ export default function RefundEnPage() {
     <LegalLayout
       lang="en"
       title="Refund Policy"
-      lastUpdated="2026-05-13"
+      lastUpdated="2026-09-16"
       switchHref="/refund"
     >
       <Section title="1. Refund Window">
@@ -61,6 +61,20 @@ export default function RefundEnPage() {
           support@6thultra.com{' '}
         </a>
         for a manager review within 5 days.
+      </Section>
+
+      <Section title="7. Supplies Store Orders">
+        Store orders are paid in cash on delivery, so there is no prepaid amount
+        to refund. The delivery fee depends on the governorate and is shown
+        before you confirm the order. You can cancel an order from My Orders
+        before it is confirmed; after confirmation, contact us. Please check
+        the parcel when the courier delivers it. If an item arrives damaged or
+        is not what you ordered, contact us at
+        <a className="text-primary" href="mailto:support@6thultra.com">
+          {' '}
+          support@6thultra.com{' '}
+        </a>
+        or through the contact button on My Orders, and we will replace it.
       </Section>
     </LegalLayout>
   );

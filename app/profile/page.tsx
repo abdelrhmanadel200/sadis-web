@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import type { Profile } from '@/lib/types';
-import { ContactSection, SubscriptionSection } from '@/components/account/AccountSections';
+import { ContactSection, PasswordSection, SubscriptionSection } from '@/components/account/AccountSections';
 import {
   User,
   Moon,
@@ -16,6 +16,8 @@ import {
   LogOut,
   Save,
   BookOpen,
+  ShoppingBag,
+  ChevronLeft,
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -63,6 +65,15 @@ export default function ProfilePage() {
       setLoading(false);
     })();
   }, [userId]);
+
+  // /profile#security (من "نسيت كلمة المرور" أو التطبيق): انزل لقسم كلمة المرور بعد التحميل.
+  useEffect(() => {
+    if (loading || typeof window === 'undefined' || window.location.hash !== '#security') return;
+    const raf = window.requestAnimationFrame(() => {
+      document.getElementById('security')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [loading]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -195,7 +206,23 @@ export default function ProfilePage() {
             </section>
 
             {user && <ContactSection user={user} profilePhone={(profile?.phone as string | null) ?? null} />}
+            {user && (
+              <div id="security" className="scroll-mt-24">
+                <PasswordSection user={user} />
+              </div>
+            )}
             {user && <SubscriptionSection user={user} />}
+
+            <Link
+              href="/store/orders"
+              className="card border border-dark-border rounded-2xl p-5 flex items-center justify-between gap-3 hover:border-primary/50 transition"
+            >
+              <span className="flex items-center gap-2 font-cairo font-bold text-lg">
+                <ShoppingBag className="w-5 h-5 text-primary-light" />
+                طلباتي من المتجر
+              </span>
+              <ChevronLeft className="w-5 h-5 text-muted" />
+            </Link>
 
             <button
               onClick={handleLogout}

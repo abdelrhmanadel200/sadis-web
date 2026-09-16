@@ -12,6 +12,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { adminClient, hashCode, normalizePhone } from '@/lib/phone-otp';
+import { findLoginUser } from '@/lib/auth-server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -63,15 +64,12 @@ export async function POST(req: NextRequest) {
 
   // ٢) الرقم لا يجوز أن يكون مرتبطاً بحساب آخر. نفحص قبل حرق الرمز حتى لا
   //    يضيع رمز صحيح بسبب خطأ في البحث.
-  let page = 1;
-  while (page < 50) {
-    const { data, error } = await supa.auth.admin.listUsers({ page, perPage: 200 });
-    if (error) return bad('خطأ في البحث عن المستخدم', 500);
-    const taken = data.users.find((u) => u.phone === phone && u.id !== userId);
-    if (taken) return bad('هذا الرقم مرتبط بحساب آخر بالفعل', 409);
-    if (data.users.length < 200) break;
-    page += 1;
+  const found = await findLoginUser(supa, { phone });
+  if (!found.ok) {
+    console.error('phone-otp/link: auth_find_login_user failed', found.error);
+    return bad('خطأ في البحث عن المستخدم', 500);
   }
+  if (found.user && found.user.id !== userId) return bad('هذا الرقم مرتبط بحساب آخر بالفعل', 409);
 
   // الرقم القديم في البروفايل، للتراجع لو فشل ربط حساب الدخول.
   const { data: prof, error: profReadErr } = await supa
@@ -112,7 +110,7 @@ export async function POST(req: NextRequest) {
     console.error('phone-otp/link: updateUserById failed', upd.error);
     const { error: rollbackErr } = await supa.from('profiles').update({ phone: oldPhone }).eq('id', userId);
     if (rollbackErr) console.error('phone-otp/link: profile rollback failed', rollbackErr);
-    // حساب لم تصله صفحات البحث أعلاه يملك الرقم: إعادة المحاولة لن تنجح.
+    // حساب آخر أخذ الرقم بعد الفحص أعلاه: إعادة المحاولة لن تنجح.
     if (upd.error.code === 'phone_exists') return bad('هذا الرقم مرتبط بحساب آخر بالفعل', 409);
     await unburn();
     return bad('تعذّر ربط الرقم، حاول مرة ثانية', 500);

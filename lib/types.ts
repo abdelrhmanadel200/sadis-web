@@ -41,20 +41,96 @@ export interface ChatMessage {
   created_at: string;
 }
 
+/** فروع متجر المستلزمات. 'digital' = منتجات رقمية قديمة مخفية. */
+export type StoreCategory = 'books' | 'booklets' | 'stationery' | 'notebooks';
+
 export interface Product {
   id: string;
-  type: 'book' | 'summary' | 'video';
+  /** 'physical' = منتج في متجر المستلزمات. الأنواع الأخرى قديمة ومخفية. */
+  type: 'physical' | 'book' | 'summary' | 'video';
+  category: StoreCategory | 'digital';
   subject_id: string | null;
   title: string;
   description: string | null;
+  /** المؤلف أو الأستاذ */
   teacher_name: string | null;
+  /** نسخة من images[0] (يملؤها trigger في القاعدة) */
   thumbnail_url: string | null;
-  content_url: string | null;
+  images: string[];
   price_iqd: number;
-  is_free: boolean;
-  chapter_order: number | null;
+  /** السعر قبل الخصم */
+  compare_at_price_iqd: number | null;
+  /** null = غير محدود */
+  stock: number | null;
+  max_per_order: number;
+  is_active: boolean;
+  sort_order: number;
+  sku: string | null;
+  created_at: string;
+  updated_at: string;
+  // أعمدة قديمة لا يستخدمها المتجر
+  content_url?: string | null;
+  is_free?: boolean;
+  chapter_order?: number | null;
 }
 
+export type StoreOrderStatus = 'new' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+
+export interface StoreOrderItem {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  /** نسخة وقت الطلب */
+  title: string;
+  image_url: string | null;
+  category: string | null;
+  unit_price_iqd: number;
+  qty: number;
+  line_total_iqd: number;
+  stock_reserved: boolean;
+  created_at: string;
+}
+
+export interface StoreOrder {
+  id: string;
+  order_no: number;
+  user_id: string | null;
+  client_token: string | null;
+  status: StoreOrderStatus;
+  customer_name: string;
+  /** +9647XXXXXXXXX */
+  phone: string;
+  alt_phone: string | null;
+  governorate: string;
+  area: string;
+  /** أقرب نقطة دالة */
+  address: string | null;
+  notes: string | null;
+  payment_method: 'cod';
+  items_count: number;
+  subtotal_iqd: number;
+  delivery_fee_iqd: number;
+  total_iqd: number;
+  cancel_reason: string | null;
+  cancelled_by: 'customer' | 'admin' | null;
+  confirmed_at: string | null;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+  store_order_items?: StoreOrderItem[];
+}
+
+/** نتيجة place_store_order */
+export interface PlaceStoreOrderResult {
+  id: string;
+  order_no: number;
+  total_iqd: number;
+  repeated?: boolean;
+}
+
+/** نظام الشراء الرقمي القديم (غير مستخدم). */
 export interface Purchase {
   id: string;
   user_id: string;

@@ -1,27 +1,19 @@
 // POST /api/subscriptions/redeem
 //
-// Activates a subscription by redeeming a coupon code. This is the manual
-// payment workaround for users who can't use an online gateway (e.g. the
-// student paid the seller in cash → seller hands them a code → they redeem
-// it here to unlock the plan).
+// تفعيل رمز اشتراك (الويب وتطبيق الموبايل). الطالب يدفع للموزع ويستلم رمزا
+// من 16 رقما (أو رمزا قديما بصيغة SADIS-XXXX-XXXX-XXXX) ويدخله هنا.
 //
-// Coupon schema requirement: when a coupon row has its `plan_id` column set
-// to a plan from `subscription_plans`, this endpoint treats it as a
-// subscription activator and inserts a row into `subscriptions` for the
-// caller with status='active' and expires_at = now + plan.duration_days.
-// Coupons without `plan_id` fall through unchanged (legacy money-discount
-// behaviour handled by the older `redeem_coupon` RPC).
+// كل المنطق داخل الدالة redeem_subscription_code في قاعدة البيانات، في عملية
+// واحدة ذرية: قفل لكل طالب، استخدام الرمز مرة واحدة لكل حساب، إيقاف 24 ساعة
+// بعد 4 رموز غير موجودة، وتمديد شهر الذكاء من نهايته الحالية. هذا المسار فقط
+// يتحقق من الحساب والحظر، ينظف الرمز، ويحول النتيجة إلى رسالة عربية واضحة.
 //
-// Concurrency & abuse guards:
-//   * one redemption per user per coupon (checked against subscriptions
-//     metadata->coupon_code) — a shared multi-use promo code can't be farmed
-//     by the same account for repeat subscriptions/affiliate commissions;
-//   * the `used_count` bump is a compare-and-swap executed BEFORE the
-//     subscription insert, so N parallel requests can't oversubscribe a
-//     max_uses-limited coupon.
+// الرد دائما JSON: { ok, code?, message? } وعند النجاح
+// { ok: true, plan_id, plan_name, starts_at, expires_at, sections_expires_at, ai_expires_at }.
 
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { toAsciiDigits } from '@/lib/iraq';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,242 +22,232 @@ const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
 const ANON_KEY = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
 const SERVICE_ROLE = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 
-function bad(message: string, status = 400) {
-  return new Response(JSON.stringify({ ok: false, message }), {
+// أسماء الباقات من الكود لا من قاعدة البيانات (name_ar فيها صياغة النظام القديم).
+const PLAN_NAMES: Record<string, string> = {
+  chat_monthly: 'الباقة الأساسية',
+  lifetime_access: 'الباقة السنوية',
+  ai_refill: 'إعادة تعبئة الذكاء الاصطناعي',
+};
+
+const MAX_CODE_LENGTH = 64;
+
+interface RedeemResult {
+  ok?: boolean;
+  code?: string;
+  plan_id?: string | null;
+  subscription_id?: string | null;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  sections_expires_at?: string | null;
+  ai_expires_at?: string | null;
+  remaining?: number | null;
+  locked?: boolean | null;
+  locked_until?: string | null;
+}
+
+function json(status: number, body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
 }
 
-function ok(body: Record<string, unknown>) {
-  return new Response(JSON.stringify({ ok: true, ...body }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
+function fail(status: number, code: string, message: string, extra: Record<string, unknown> = {}) {
+  return json(status, { ok: false, code, message, ...extra });
 }
 
-interface SubscriptionPlan {
-  id: string;
-  name_ar: string;
-  duration_days: number;
-  price_iqd: number | null;
-  price_usd: number;
+function isoOrNull(v: unknown): string | null {
+  if (typeof v !== 'string' || !v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-interface CouponRow {
-  code: string;
-  plan_id: string | null;
-  duration_days: number | null;
-  max_uses: number | null;
-  used_count: number | null;
-  expires_at: string | null;
+function arDate(v: unknown): string | null {
+  const iso = isoOrNull(v);
+  return iso ? new Date(iso).toLocaleDateString('ar-IQ', { timeZone: 'Asia/Baghdad' }) : null;
 }
+
+// الرمز كما يكتبه الطالب: أرقام عربية أو فارسية، مسافات، شرطات، علامات اتجاه.
+// النتيجة أحرف A-Z وأرقام وشرطة فقط، والمرشحات: كما هو، وبدون شرطات، وللرمز
+// القديم المكتوب بلا شرطات صيغته الأصلية SADIS-XXXX-XXXX-XXXX.
+function codeCandidates(raw: string): string[] {
+  const normalized = toAsciiDigits(raw.normalize('NFKC'))
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, '');
+  const noDashes = normalized.replace(/-/g, '');
+  const list = [normalized, noDashes];
+  const legacy = /^SADIS([A-Z0-9]{4})([A-Z0-9]{4})([A-Z0-9]{4})$/.exec(noDashes);
+  if (legacy) list.push(`SADIS-${legacy[1]}-${legacy[2]}-${legacy[3]}`);
+  return Array.from(new Set(list.filter(Boolean)));
+}
+
+const REUSE_NOTE = 'رمزك ما زال صالحا ولم يستخدم.';
+
+// تحويل كود الفشل من الدالة إلى حالة HTTP ورسالة للطالب.
+function failureResponse(r: RedeemResult): Response {
+  const code = r.code || 'unknown';
+  switch (code) {
+    case 'bad_request':
+      return fail(400, code, 'الرمز مطلوب');
+    case 'banned':
+      return fail(403, code, 'تم حظر حسابك من المنصة.');
+    case 'locked': {
+      const until = isoOrNull(r.locked_until);
+      const hours = until
+        ? Math.max(1, Math.ceil((new Date(until).getTime() - Date.now()) / 3_600_000))
+        : 24;
+      return fail(
+        429,
+        code,
+        `تم إيقاف التفعيل مؤقتا بسبب محاولات خاطئة متكررة. حاول بعد ${hours} ساعة.`,
+        { locked_until: until },
+      );
+    }
+    case 'not_found': {
+      if (r.locked) {
+        return fail(
+          400,
+          code,
+          'الرمز غير موجود. استنفدت محاولاتك، تم إيقاف التفعيل لمدة 24 ساعة.',
+          { remaining: 0, locked: true },
+        );
+      }
+      const remaining = typeof r.remaining === 'number' ? Math.max(0, r.remaining) : null;
+      return fail(
+        400,
+        code,
+        remaining != null
+          ? `الرمز غير موجود، تأكد منه وحاول مرة ثانية. المحاولات المتبقية: ${remaining}`
+          : 'الرمز غير موجود، تأكد منه وحاول مرة ثانية.',
+        { remaining, locked: false },
+      );
+    }
+    case 'already_used_by_you':
+      return fail(409, code, 'لقد استخدمت هذا الرمز من قبل على حسابك.');
+    case 'disabled':
+      return fail(400, code, 'هذا الرمز موقوف، تواصل مع فريق التفعيل');
+    case 'reserved':
+      return fail(400, code, 'هذا الرمز مخصص لحساب آخر');
+    case 'expired':
+      return fail(400, code, 'انتهت صلاحية هذا الرمز، تواصل مع فريق التفعيل');
+    case 'exhausted':
+      return fail(400, code, 'هذا الرمز مستخدم');
+    case 'not_subscription':
+      return fail(400, code, 'هذا الرمز ليس رمز اشتراك');
+    case 'plan_unavailable':
+      return fail(400, code, 'الباقة المرتبطة بهذا الرمز غير متاحة حاليا، تواصل مع فريق التفعيل');
+    case 'ai_already_covered': {
+      const ai = arDate(r.ai_expires_at);
+      return fail(
+        409,
+        code,
+        `الأستاذ ذكي مفعل عندك${ai ? ` حتى ${ai}` : ''}. ` +
+          `يمكنك استخدام رمز إعادة التعبئة عندما يبقى شهر أو أقل على انتهائه. ${REUSE_NOTE}`,
+        { ai_expires_at: isoOrNull(r.ai_expires_at) },
+      );
+    }
+    case 'still_active': {
+      const sec = arDate(r.sections_expires_at);
+      const ai = arDate(r.ai_expires_at);
+      return fail(
+        409,
+        code,
+        `باقتك ما زالت مفعلة${sec ? ` حتى ${sec}` : ''}` +
+          `${ai ? ` (الأستاذ ذكي حتى ${ai})` : ''}. ` +
+          'لتجديد الأستاذ ذكي استخدم رمز إعادة التعبئة، ' +
+          `وجدد الباقة عندما يبقى شهر أو أقل على انتهائها. ${REUSE_NOTE}`,
+        {
+          sections_expires_at: isoOrNull(r.sections_expires_at),
+          ai_expires_at: isoOrNull(r.ai_expires_at),
+        },
+      );
+    }
+    default:
+      return fail(400, code, 'تعذر تفعيل الرمز، تواصل مع فريق التفعيل');
+  }
+}
+
+const SERVER_ERROR_MESSAGE = 'تعذر تفعيل الرمز حاليا، حاول مرة ثانية بعد قليل.';
 
 export async function POST(req: NextRequest) {
-  let body: { code?: string };
+  try {
+    return await handle(req);
+  } catch (e) {
+    console.error('redeem: unexpected error', e);
+    return fail(500, 'server_error', SERVER_ERROR_MESSAGE);
+  }
+}
+
+async function handle(req: NextRequest): Promise<Response> {
+  let body: { code?: unknown };
   try {
     body = await req.json();
   } catch {
-    return bad('JSON غير صالح');
+    return fail(400, 'bad_request', 'JSON غير صالح');
   }
-  // Two accepted formats: the new 16-digit numeric code, and the legacy
-  // SADIS-XXXX-XXXX-XXXX code that was already handed out. Strip the noise
-  // people paste (spaces, RTL marks) from both, and additionally try the
-  // dash-free form so "1234 5678 …" resolves — while keeping the dashed form
-  // as a candidate so an already-issued legacy code still matches its row.
-  const rawCode = (body.code || '').replace(/[\s‎‏]/g, '').toUpperCase();
-  const candidates = Array.from(new Set([rawCode, rawCode.replace(/-/g, '')].filter(Boolean)));
-  if (candidates.length === 0) return bad('الرمز مطلوب');
+  const raw = typeof body?.code === 'string' ? body.code : '';
+  const candidates = codeCandidates(raw);
+  if (candidates.length === 0) return fail(400, 'bad_request', 'الرمز مطلوب');
+  if (candidates[0].length > MAX_CODE_LENGTH) {
+    return fail(400, 'bad_request', 'الرمز غير صحيح، تأكد منه وحاول مرة ثانية.');
+  }
 
-  // Resolve the caller from their bearer token (web client uses localStorage).
+  // الطالب من التوكن (الويب يحفظ الجلسة في localStorage، والتطبيق يرسل توكنه).
   const auth = req.headers.get('authorization') ?? '';
   if (!auth.toLowerCase().startsWith('bearer ')) {
-    return bad('سجّل دخول أولاً', 401);
+    return fail(401, 'unauthorized', 'سجل دخولك أولا');
   }
   const token = auth.slice(7).trim();
+  if (!token) return fail(401, 'unauthorized', 'سجل دخولك أولا');
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
   const { data: userRes, error: userErr } = await userClient.auth.getUser(token);
-  if (userErr || !userRes.user) return bad('سجّل دخول أولاً', 401);
+  if (userErr || !userRes.user) return fail(401, 'unauthorized', 'سجل دخولك أولا');
   const userId = userRes.user.id;
 
-  // From here on we use service-role so we can write to `subscriptions` and
-  // touch the coupon counter even though the client doesn't own those rows.
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
-    auth: { persistSession: false },
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // Banned profiles can't redeem.
+  // الحساب المحظور لا يفعل (الدالة تتحقق أيضا، هنا لعرض السبب).
   const { data: profileBan } = await admin
     .from('profiles')
     .select('banned_at, ban_reason')
     .eq('id', userId)
     .maybeSingle();
   if (profileBan?.banned_at) {
-    return bad(
+    return fail(
+      403,
+      'banned',
       'تم حظر حسابك من المنصة' +
         (profileBan.ban_reason ? ` (السبب: ${profileBan.ban_reason})` : '') +
         '.',
-      403,
     );
   }
 
-  // ── Anti-guessing guard ──────────────────────────────────────────────
-  // 4 wrong codes → activation locked for 24h for this account. State lives
-  // in `redeem_attempts` (service-role only). All guard I/O is best-effort:
-  // if the table is missing we fall back to the old unguarded behaviour
-  // rather than blocking legitimate redemptions.
-  const MAX_ATTEMPTS = 4;
-  const LOCK_HOURS = 24;
-  try {
-    const { data: att } = await admin
-      .from('redeem_attempts')
-      .select('failed_count, locked_until')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (att?.locked_until && new Date(att.locked_until) > new Date()) {
-      const hoursLeft = Math.ceil(
-        (new Date(att.locked_until).getTime() - Date.now()) / 3_600_000,
-      );
-      return bad(
-        `تم إيقاف التفعيل مؤقتاً بسبب محاولات خاطئة متكررة. حاول بعد ${hoursLeft} ساعة.`,
-        429,
-      );
-    }
-  } catch { /* guard unavailable — continue */ }
-
-  // Register a wrong-code attempt and build the user-facing message.
-  const failAttempt = async (reason: string): Promise<Response> => {
-    let suffix = '';
-    try {
-      const { data: att } = await admin
-        .from('redeem_attempts')
-        .select('failed_count, locked_until')
-        .eq('user_id', userId)
-        .maybeSingle();
-      const nextCount = (att?.failed_count ?? 0) + 1;
-      if (nextCount >= MAX_ATTEMPTS) {
-        const lockedUntil = new Date(Date.now() + LOCK_HOURS * 3_600_000);
-        await admin.from('redeem_attempts').upsert({
-          user_id: userId,
-          failed_count: 0,
-          locked_until: lockedUntil.toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-        suffix = ` — استنفدت محاولاتك، تم إيقاف التفعيل لمدة ${LOCK_HOURS} ساعة.`;
-      } else {
-        await admin.from('redeem_attempts').upsert({
-          user_id: userId,
-          failed_count: nextCount,
-          locked_until: null,
-          updated_at: new Date().toISOString(),
-        });
-        suffix = ` (المحاولات المتبقية: ${MAX_ATTEMPTS - nextCount})`;
-      }
-    } catch { /* guard unavailable */ }
-    return bad(reason + suffix);
-  };
-
-  const { data: couponRows } = await admin
-    .from('coupons')
-    .select('code, plan_id, duration_days, max_uses, used_count, expires_at')
-    .in('code', candidates)
-    .limit(1);
-  const coupon = (couponRows?.[0] as CouponRow | undefined) ?? null;
-  if (!coupon) return failAttempt('الرمز غير موجود');
-
-  if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-    return failAttempt('انتهت صلاحية الرمز');
-  }
-  if (
-    coupon.max_uses != null &&
-    coupon.used_count != null &&
-    coupon.used_count >= coupon.max_uses
-  ) {
-    return failAttempt('الرمز مستنفد');
+  const { data, error } = await admin.rpc('redeem_subscription_code', {
+    p_user: userId,
+    p_codes: candidates,
+  });
+  if (error || !data || typeof data !== 'object') {
+    console.error('redeem_subscription_code failed', error ?? data);
+    return fail(500, 'server_error', SERVER_ERROR_MESSAGE);
   }
 
-  // A subscription-coupon must point at a plan and have a positive duration.
-  if (!coupon.plan_id) {
-    return bad('هذا الرمز ليس رمز اشتراك');
-  }
+  const result = data as RedeemResult;
+  if (result.ok !== true) return failureResponse(result);
 
-  // One redemption per user per coupon: the same account can't redeem a
-  // shared multi-use code twice (subscription + commission farming).
-  const { count: alreadyUsed } = await admin
-    .from('subscriptions')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('metadata->>coupon_code', coupon.code);
-  if ((alreadyUsed ?? 0) > 0) {
-    return bad('لقد استخدمت هذا الرمز من قبل');
-  }
-
-  const { data: planRow } = await admin
-    .from('subscription_plans')
-    .select('id, name_ar, duration_days, price_iqd, price_usd')
-    .eq('id', coupon.plan_id)
-    .maybeSingle();
-  const plan = planRow as SubscriptionPlan | null;
-  if (!plan) return bad('الباقة المرتبطة بالرمز غير متاحة');
-
-  // Claim one use FIRST via compare-and-swap: the update only matches while
-  // used_count still holds the value we read, so parallel requests can't all
-  // pass the max_uses check. Losing the race → ask the user to retry.
-  const { data: claimed } = await admin
-    .from('coupons')
-    .update({ used_count: (coupon.used_count ?? 0) + 1 })
-    .eq('code', coupon.code)
-    .eq('used_count', coupon.used_count ?? 0)
-    .select('code');
-  if (!claimed || claimed.length === 0) {
-    return bad('الرمز قيد الاستخدام حالياً — حاول مرة أخرى', 409);
-  }
-
-  // Effective duration: coupon may override the plan's duration (e.g. a
-  // promo code that gives 60 days of chat_monthly).
-  const durationDays = coupon.duration_days && coupon.duration_days > 0
-    ? coupon.duration_days
-    : plan.duration_days;
-  const startsAt = new Date();
-  const expiresAt = new Date(startsAt.getTime() + durationDays * 86_400_000);
-
-  // Insert the user's subscription row for this plan.
-  const { error: subErr } = await admin
-    .from('subscriptions')
-    .insert({
-      user_id: userId,
-      plan_id: plan.id,
-      status: 'active',
-      amount_usd: plan.price_usd ?? 0,
-      amount_iqd: plan.price_iqd ?? 0,
-      currency: plan.price_iqd ? 'IQD' : 'USD',
-      payment_method: 'coupon',
-      starts_at: startsAt.toISOString(),
-      expires_at: expiresAt.toISOString(),
-      metadata: { coupon_code: coupon.code },
-    });
-  if (subErr) {
-    console.error('insert subscription failed', subErr);
-    // Compensate: release the use we claimed so the coupon isn't burned.
-    await admin
-      .from('coupons')
-      .update({ used_count: coupon.used_count ?? 0 })
-      .eq('code', coupon.code)
-      .eq('used_count', (coupon.used_count ?? 0) + 1);
-    return bad('تعذّر تفعيل الاشتراك، حاول مرة أخرى', 500);
-  }
-
-  // Successful redemption clears the wrong-attempt counter.
-  try {
-    await admin.from('redeem_attempts').delete().eq('user_id', userId);
-  } catch { /* guard unavailable */ }
-
-  return ok({
-    plan_id: plan.id,
-    plan_name: plan.name_ar,
-    expires_at: expiresAt.toISOString(),
+  const planId = result.plan_id ?? '';
+  return json(200, {
+    ok: true,
+    plan_id: planId,
+    plan_name: PLAN_NAMES[planId] ?? planId,
+    starts_at: isoOrNull(result.starts_at),
+    expires_at: isoOrNull(result.expires_at),
+    sections_expires_at: isoOrNull(result.sections_expires_at),
+    ai_expires_at: isoOrNull(result.ai_expires_at),
   });
 }

@@ -10,7 +10,7 @@ export default function TermsEnPage() {
     <LegalLayout
       lang="en"
       title="Terms of Service"
-      lastUpdated="2026-05-13"
+      lastUpdated="2026-09-16"
       switchHref="/terms"
     >
       <Section title="1. Introduction">
@@ -70,7 +70,20 @@ export default function TermsEnPage() {
         dispute will be resolved by the competent courts of Baghdad.
       </Section>
 
-      <Section title="10. Contact">
+      <Section title="10. Supplies Store">
+        The store sells books, booklets (malazim), stationery and notebooks
+        with delivery to all Iraqi governorates. Payment is cash on delivery
+        only. The delivery fee depends on the governorate and is shown before
+        you confirm the order, and prices are those in effect when the order is
+        placed. We call you to confirm the order before sending it, and you can
+        cancel it from &quot;My orders&quot; while it is still awaiting
+        confirmation; orders that cannot be confirmed may be cancelled after
+        some time. Please check the parcel when the courier hands it to you. If
+        an item arrives damaged or is not what you ordered, contact us and we
+        will exchange it.
+      </Section>
+
+      <Section title="11. Contact">
         For any inquiry, email us at
         <a className="text-primary" href="mailto:support@6thultra.com">
           {' '}

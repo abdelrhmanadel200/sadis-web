@@ -10,7 +10,7 @@ export default function RefundArPage() {
     <LegalLayout
       lang="ar"
       title="سياسة الاسترجاع"
-      lastUpdated="2026-05-13"
+      lastUpdated="2026-09-16"
       switchHref="/en/refund"
     >
       <Section title="١. الفترة المسموح فيها بالاسترجاع">
@@ -58,6 +58,18 @@ export default function RefundArPage() {
           support@6thultra.com{' '}
         </a>
         وستتم مراجعة الحالة من طرف مدير الخدمة خلال ٥ أيام.
+      </Section>
+
+      <Section title="٧. طلبات متجر المستلزمات">
+        الدفع في المتجر نقدا عند الاستلام، لذلك لا توجد مبالغ مدفوعة مسبقا
+        لاسترجاعها. أجرة التوصيل حسب المحافظة وتظهر قبل تأكيد الطلب. تقدر تلغي
+        الطلب من صفحة طلباتي قبل تأكيده، وبعد التأكيد تواصل معنا. افحص الطلب عند
+        استلامه من المندوب، وإذا وصلك منتج تالف أو غير الذي طلبته تواصل معنا عبر
+        <a className="text-primary" href="mailto:support@6thultra.com">
+          {' '}
+          support@6thultra.com{' '}
+        </a>
+        أو زر التواصل في صفحة طلباتي، ونستبدله لك.
       </Section>
     </LegalLayout>
   );
